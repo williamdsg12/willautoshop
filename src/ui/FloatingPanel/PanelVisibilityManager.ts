@@ -17,6 +17,13 @@ export class PanelVisibilityManager {
   }
 
   /**
+   * Define o botão de minimizar após renderização.
+   */
+  setMinimizeButton(minimizeButton: HTMLElement): void {
+    this.minimizeBtnEl = minimizeButton;
+  }
+
+  /**
    * Alterna estado minimizado do painel flutuante.
    */
   toggleMinimize(): boolean {

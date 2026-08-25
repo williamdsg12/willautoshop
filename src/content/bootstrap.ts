@@ -101,11 +101,14 @@ let heartbeatService: LiveHeartbeatService | null = null;
 async function initializeSession(injector: PanelInjector): Promise<void> {
   Logger.info(MODULE, '🔴 Inicializando sessão e detectores...');
 
-  // Aguarda carregamento do DOM
-  if (document.readyState !== 'complete') {
-    await new Promise(resolve => window.addEventListener('load', resolve, { once: true }));
+  // Aguarda body estar disponível no DOM
+  if (!document.body && document.readyState === 'loading') {
+    await new Promise(resolve => {
+      document.addEventListener('DOMContentLoaded', resolve, { once: true });
+      setTimeout(resolve, 1000);
+    });
   }
-  await sleep(1200);
+  await sleep(600);
 
   // 1. Injeta o painel flutuante
   await injector.inject();

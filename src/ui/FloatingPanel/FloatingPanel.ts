@@ -61,11 +61,17 @@ export class FloatingPanel {
   async mount(): Promise<void> {
     Logger.info(MODULE, `Montando ${APP_NAME}...`);
 
+    const targetParent = document.body || document.documentElement;
+    if (!targetParent) {
+      Logger.error(MODULE, 'document.body não disponível para montagem do painel');
+      return;
+    }
+
     // 1. Cria container host
     this.host = document.createElement('div');
     this.host.id = PANEL_ROOT_ID;
     this.host.style.cssText = 'all:initial;position:fixed;z-index:2147483647;top:0;left:0;';
-    document.body.appendChild(this.host);
+    targetParent.appendChild(this.host);
 
     // 2. Cria Shadow DOM para isolar CSS do TikTok
     this.shadow = this.host.attachShadow({ mode: 'open' });
@@ -117,17 +123,21 @@ export class FloatingPanel {
 
   private _initializeComponents(): void {
     const headerContainer = this.shadow.querySelector<HTMLElement>('#als-header-container')!;
-    const minimizeBtn = this.shadow.querySelector<HTMLElement>('#als-btn-minimize')!;
 
     this.positionMgr = new PanelPositionManager(this.panelEl);
     this.dragMgr = new PanelDragManager(this.panelEl, headerContainer, this.positionMgr);
-    this.visibilityMgr = new PanelVisibilityManager(this.panelEl, minimizeBtn);
+    this.visibilityMgr = new PanelVisibilityManager(this.panelEl);
 
     this.headerComp = new Header(
       headerContainer,
       () => this.visibilityMgr.toggleMinimize(),
       () => this.visibilityMgr.close(),
     );
+
+    const minimizeBtn = this.shadow.querySelector<HTMLElement>('#als-btn-minimize');
+    if (minimizeBtn) {
+      this.visibilityMgr.setMinimizeButton(minimizeBtn);
+    }
 
     const nav = this.shadow.querySelector<HTMLElement>('.als-tab-nav')!;
     const content = this.shadow.querySelector<HTMLElement>('.als-content')!;

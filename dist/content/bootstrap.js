@@ -815,6 +815,12 @@ class PanelVisibilityManager {
     this.minimizeBtnEl = minimizeButton;
   }
   /**
+   * Define o botão de minimizar após renderização.
+   */
+  setMinimizeButton(minimizeButton) {
+    this.minimizeBtnEl = minimizeButton;
+  }
+  /**
    * Alterna estado minimizado do painel flutuante.
    */
   toggleMinimize() {
@@ -2321,10 +2327,15 @@ class FloatingPanel {
   editingReplyId = null;
   async mount() {
     Logger.info(MODULE$7, `Montando ${APP_NAME}...`);
+    const targetParent = document.body || document.documentElement;
+    if (!targetParent) {
+      Logger.error(MODULE$7, "document.body não disponível para montagem do painel");
+      return;
+    }
     this.host = document.createElement("div");
     this.host.id = PANEL_ROOT_ID;
     this.host.style.cssText = "all:initial;position:fixed;z-index:2147483647;top:0;left:0;";
-    document.body.appendChild(this.host);
+    targetParent.appendChild(this.host);
     this.shadow = this.host.attachShadow({ mode: "open" });
     const style = document.createElement("style");
     style.textContent = panelCss;
@@ -2360,15 +2371,18 @@ class FloatingPanel {
   }
   _initializeComponents() {
     const headerContainer = this.shadow.querySelector("#als-header-container");
-    const minimizeBtn = this.shadow.querySelector("#als-btn-minimize");
     this.positionMgr = new PanelPositionManager(this.panelEl);
     this.dragMgr = new PanelDragManager(this.panelEl, headerContainer, this.positionMgr);
-    this.visibilityMgr = new PanelVisibilityManager(this.panelEl, minimizeBtn);
+    this.visibilityMgr = new PanelVisibilityManager(this.panelEl);
     this.headerComp = new Header(
       headerContainer,
       () => this.visibilityMgr.toggleMinimize(),
       () => this.visibilityMgr.close()
     );
+    const minimizeBtn = this.shadow.querySelector("#als-btn-minimize");
+    if (minimizeBtn) {
+      this.visibilityMgr.setMinimizeButton(minimizeBtn);
+    }
     const nav = this.shadow.querySelector(".als-tab-nav");
     const content = this.shadow.querySelector(".als-content");
     this.tabMgr = new TabManager(nav, content);
@@ -3428,10 +3442,13 @@ let metricsDetector = null;
 let heartbeatService = null;
 async function initializeSession(injector) {
   Logger.info(MODULE, "🔴 Inicializando sessão e detectores...");
-  if (document.readyState !== "complete") {
-    await new Promise((resolve) => window.addEventListener("load", resolve, { once: true }));
+  if (!document.body && document.readyState === "loading") {
+    await new Promise((resolve) => {
+      document.addEventListener("DOMContentLoaded", resolve, { once: true });
+      setTimeout(resolve, 1e3);
+    });
   }
-  await sleep(1200);
+  await sleep(600);
   await injector.inject();
   liveDetector = new LiveDetector();
   liveDetector.start();
