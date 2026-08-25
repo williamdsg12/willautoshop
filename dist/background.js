@@ -1,4 +1,59 @@
-import { L as Logger, A as ALARMS, a as APP_NAME, S as STORAGE_KEYS, C as COMMANDS } from "./chunks/Logger-C-jcrhwc.js";
+const APP_NAME = "Copilo Live Shop";
+const STORAGE_KEYS = {
+  INITIALIZED: "als_initialized"
+};
+const COMMANDS = {
+  HEARTBEAT: "ALS_HEARTBEAT"
+};
+const ALARMS = {
+  AUTO_CLOSE: "als_auto_close"
+};
+const LOG_COLORS = {
+  DEBUG: "#64748b",
+  INFO: "#22c55e",
+  WARN: "#f97316",
+  ERROR: "#ef4444"
+};
+class LoggerClass {
+  prefix = APP_NAME;
+  debugEnabled = true;
+  /** Ativa ou desativa logs de nível DEBUG */
+  setDebugEnabled(enabled) {
+    this.debugEnabled = enabled;
+  }
+  debug(module, message, ...args) {
+    if (!this.debugEnabled) return;
+    this._log("DEBUG", module, message, ...args);
+  }
+  info(module, message, ...args) {
+    this._log("INFO", module, message, ...args);
+  }
+  warn(module, message, ...args) {
+    this._log("WARN", module, message, ...args);
+  }
+  error(module, message, ...args) {
+    this._log("ERROR", module, message, ...args);
+  }
+  _log(level, module, message, ...args) {
+    const color = LOG_COLORS[level];
+    const tag = `[${this.prefix}][${module}]`;
+    switch (level) {
+      case "DEBUG":
+        console.log(`%c${tag}`, `color:${color};font-weight:600;`, message, ...args);
+        break;
+      case "INFO":
+        console.info(`%c${tag}`, `color:${color};font-weight:bold;`, message, ...args);
+        break;
+      case "WARN":
+        console.warn(`%c${tag}`, `color:${color};font-weight:bold;`, message, ...args);
+        break;
+      case "ERROR":
+        console.error(`%c${tag}`, `color:${color};font-weight:bold;`, message, ...args);
+        break;
+    }
+  }
+}
+const Logger = new LoggerClass();
 const MODULE$1 = "LiveBackgroundService";
 class LiveBackgroundService {
   /**

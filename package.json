@@ -4,9 +4,8 @@
   "description": "Copilo Live Shop V2 — Copiloto de lives para TikTok Shop",
   "private": true,
   "scripts": {
-    "dev": "vite build --watch",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "node build.mjs",
+    "build": "node build.mjs",
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
