@@ -8,6 +8,14 @@
 
 /* ── Tokens de design ────────────────────────────────────────*/
 :host {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: 2147483647;
+  pointer-events: none;
   --bg:          #080d1a;
   --bg-card:     #0d1525;
   --bg-card-alt: #111c30;
@@ -34,7 +42,6 @@
   --radius-xs:   5px;
   --transition:  0.18s ease;
   --font:        'Inter', system-ui, -apple-system, sans-serif;
-  all: initial;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,6 +54,7 @@
   width: var(--als-w, 320px);
   height: var(--als-h, 560px);
   z-index: 2147483647;
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
   background: var(--bg);
