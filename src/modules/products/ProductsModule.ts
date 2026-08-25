@@ -17,6 +17,10 @@ export class ProductsModule {
     return this.productCtrl.refreshProducts();
   }
 
+  async refreshProducts(): Promise<ActionResult<LiveProduct[]>> {
+    return this.productCtrl.refreshProducts();
+  }
+
   /**
    * Fixa um produto na LIVE.
    */

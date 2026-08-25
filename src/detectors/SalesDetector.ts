@@ -1,19 +1,18 @@
 // ============================================================
-// Copilo Live Shop V2 — Sales Detector
+// Auto Live Shop V2 — Sales Detector
 // Observa eventos de nova venda no DOM e extrai dados com deduplicação
 // ============================================================
 
 import { StateManager } from '@/core/StateManager';
 import { Logger } from '@/core/Logger';
 import { TikTokSelectors } from '@/adapters/tiktok-shop/TikTokSelectors';
-import { createUniqueHash } from '@/shared/utils';
+import { salesDeduplicator } from '@/services/SalesDeduplicator';
 import type { Sale } from '@/shared/types';
 
 const MODULE = 'SalesDetector';
 
 export class SalesDetector {
   private observer: MutationObserver | null = null;
-  private seenHashes = new Set<string>();
   private isRunning = false;
 
   start(): void {
@@ -66,18 +65,12 @@ export class SalesDetector {
     const sale = this._extractSaleInfo(node);
     if (!sale) return;
 
-    const hash = createUniqueHash(sale.id);
-    if (this.seenHashes.has(hash)) return;
-
-    this.seenHashes.add(hash);
-
-    // Evita crescimento indefinido do conjunto de hashes
-    if (this.seenHashes.size > 500) {
-      const arr = Array.from(this.seenHashes);
-      this.seenHashes = new Set(arr.slice(arr.length - 250));
+    if (salesDeduplicator.isDuplicate(sale)) {
+      Logger.debug(MODULE, `Venda duplicada ignorada [${sale.id}]`);
+      return;
     }
 
-    Logger.info(MODULE, `🛍 Nova venda detectada: ${sale.productName || 'Produto'} - R$ ${sale.amount ?? 0}`);
+    Logger.info(MODULE, `🛍 Nova venda real detectada: ${sale.productName || 'Produto'} - R$ ${sale.amount ?? 0}`);
     StateManager.addSale(sale);
   }
 
@@ -96,15 +89,16 @@ export class SalesDetector {
       );
       const productName = productNameEl?.textContent?.trim() || undefined;
 
-      const contentSignature = `${text.substring(0, 40)}_${Date.now()}`;
-      const id = createUniqueHash(contentSignature);
+      const rawId = salesDeduplicator.generateSaleHash({ productName, amount });
 
       return {
-        id,
+        id: rawId,
         productName,
         amount,
         quantity: 1,
         timestamp: Date.now(),
+        source: 'DOM',
+        hash: rawId,
       };
     } catch (err) {
       Logger.debug(MODULE, 'Erro ao extrair informações de venda:', err);

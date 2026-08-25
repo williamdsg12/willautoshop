@@ -156,17 +156,17 @@
 }
 .als-icon-btn:hover { color: var(--text-1); background: rgba(255,255,255,0.06); }
 
-/* ── Tab Nav ──────────────────────────────────────────────── */
+/* ── Tab Nav (6 Abas) ─────────────────────────────────────── */
 .als-tab-nav {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .als-tab-btn {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px; padding: 7px 4px;
+  gap: 2px; padding: 6px 2px;
   background: none; border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-3); cursor: pointer;
@@ -175,8 +175,8 @@
 }
 .als-tab-btn:hover { color: var(--text-2); background: rgba(255,255,255,0.02); }
 .als-tab-btn.active { color: var(--green); border-bottom-color: var(--green); background: rgba(34,197,94,0.04); }
-.als-tab-icon  { font-size: 13px; }
-.als-tab-label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.3px; }
+.als-tab-icon  { font-size: 12px; }
+.als-tab-label { font-size: 7.5px; font-weight: 700; letter-spacing: 0.2px; text-transform: uppercase; }
 
 /* ── Conteúdo ─────────────────────────────────────────────── */
 .als-content {

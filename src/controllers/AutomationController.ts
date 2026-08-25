@@ -1,6 +1,6 @@
 // ============================================================
-// Copilo Live Shop V2 — Automation Controller
-// Gerencia fixação automática e renovação periódica de produtos
+// Auto Live Shop V2 — Automation Controller
+// Gerencia fixação automática e renovação periódica com feedback em tempo real
 // ============================================================
 
 import { StateManager } from '@/core/StateManager';
@@ -13,12 +13,14 @@ const MODULE = 'AutomationController';
 
 export class AutomationController {
   private repinTimer: ReturnType<typeof setInterval> | null = null;
+  private tickTimer: ReturnType<typeof setInterval> | null = null;
   private productCtrl = new ProductController();
   private lastActionTimestamp = 0;
+  private nextActionTimestamp = 0;
+  private executionCount = 0;
   private isProcessing = false;
 
   constructor() {
-    // Para automações caso a LIVE seja finalizada
     EventBus.on('live:ended', () => {
       if (this.isRunning()) {
         Logger.info(MODULE, 'LIVE encerrada — desligando renovação automática de produto');
@@ -43,14 +45,13 @@ export class AutomationController {
       return false;
     }
 
-    if (StateManager.live.status !== 'LIVE_ACTIVE') {
-      Logger.warn(MODULE, 'Tentativa de iniciar automação sem LIVE ativa');
-    }
-
     this.stop();
 
     const intervalMs = Math.max(10, intervalSecs) * 1000;
     Logger.info(MODULE, `Iniciando automação: Produto ${productId}, Intervalo ${intervalSecs}s`);
+
+    this.executionCount = 0;
+    this.nextActionTimestamp = Date.now() + intervalMs;
 
     StateManager.patchLive({
       automationEnabled: true,
@@ -64,6 +65,10 @@ export class AutomationController {
         selectedProductId: productId,
         renewalIntervalMs: intervalMs,
         cooldownMs: DEFAULTS.AUTO_COOLDOWN_MS,
+        lastExecution: Date.now(),
+        nextExecution: this.nextActionTimestamp,
+        executionCount: 0,
+        lastStatus: 'Ativo',
       },
     });
 
@@ -73,18 +78,26 @@ export class AutomationController {
       type: 'success',
     });
 
-    // Fixa imediatamente no início
+    // Fixa imediatamente na ativação
     this._executeRepin(productId);
 
+    // Timer de ciclo principal
     this.repinTimer = setInterval(() => {
+      this.nextActionTimestamp = Date.now() + intervalMs;
       this._executeRepin(productId);
     }, intervalMs);
+
+    // Timer de contagem regressiva para a UI (1s)
+    this.tickTimer = setInterval(() => {
+      const remainingSecs = Math.max(0, Math.ceil((this.nextActionTimestamp - Date.now()) / 1000));
+      EventBus.emit('automation:tick', { nextSecs: remainingSecs });
+    }, 1000);
 
     return true;
   }
 
   /**
-   * Encerra o timer de automação.
+   * Encerra a automação.
    */
   stop(): void {
     if (this.repinTimer) {
@@ -92,16 +105,22 @@ export class AutomationController {
       this.repinTimer = null;
     }
 
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+      this.tickTimer = null;
+    }
+
     StateManager.patchLive({ automationEnabled: false });
     StateManager.patchSettings({
       automation: {
         ...StateManager.settings.automation,
         enabled: false,
+        lastStatus: 'Parado',
       },
     });
 
     EventBus.emit('automation:stopped');
-    Logger.info(MODULE, 'Automação parada');
+    Logger.info(MODULE, 'Automação parada com sucesso');
   }
 
   /**
@@ -115,8 +134,8 @@ export class AutomationController {
     if (this.isProcessing) return;
 
     const now = Date.now();
-    if (now - this.lastActionTimestamp < DEFAULTS.AUTO_COOLDOWN_MS) {
-      Logger.debug(MODULE, 'Cooldown ativo — ignorando ciclo de renovação');
+    if (now - this.lastActionTimestamp < DEFAULTS.AUTO_COOLDOWN_MS && this.executionCount > 0) {
+      Logger.debug(MODULE, 'Cooldown ativo — aguardando próximo ciclo');
       return;
     }
 
@@ -127,11 +146,21 @@ export class AutomationController {
 
     this.isProcessing = true;
     this.lastActionTimestamp = now;
+    this.executionCount++;
 
     try {
-      Logger.debug(MODULE, `Executando renovação de fixação para produto: ${productId}`);
+      Logger.debug(MODULE, `[#${this.executionCount}] Renovando fixação do produto: ${productId}`);
       EventBus.emit('automation:repin', { productId });
       await this.productCtrl.pinProduct(productId);
+
+      StateManager.patchSettings({
+        automation: {
+          ...StateManager.settings.automation,
+          lastExecution: now,
+          executionCount: this.executionCount,
+          lastStatus: 'Sucesso',
+        },
+      });
     } catch (err) {
       Logger.error(MODULE, 'Erro durante renovação automática de produto:', err);
     } finally {

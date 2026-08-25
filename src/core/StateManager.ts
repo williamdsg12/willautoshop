@@ -24,6 +24,7 @@ const MODULE = 'StateManager';
 export function createDefaultMetrics(): LiveMetrics {
   return {
     gmv: 0,
+    orders: 0,
     soldItems: 0,
     salesCount: 0,
     salesPerHour: 0,

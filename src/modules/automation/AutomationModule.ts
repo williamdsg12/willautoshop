@@ -69,6 +69,20 @@ export class AutomationModule {
   }
 
   /**
+   * Adiciona nova regra de resposta automática.
+   */
+  async addAutoResponse(triggers: string[], text: string): Promise<AutoResponse[]> {
+    const newRule: AutoResponse = {
+      id: Date.now(),
+      triggers,
+      text,
+      scope: 'all',
+      active: true,
+    };
+    return this.saveAutoResponse(newRule);
+  }
+
+  /**
    * Remove regra de resposta automática.
    */
   async removeAutoResponse(id: number): Promise<AutoResponse[]> {

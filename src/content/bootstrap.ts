@@ -3,7 +3,7 @@
 // Ponto de entrada injetado em páginas do TikTok Shop
 // ============================================================
 
-import { PANEL_FLAG, APP_NAME } from '@/shared/constants';
+import { PANEL_FLAG, APP_NAME, APP_VERSION } from '@/shared/constants';
 import { sleep } from '@/shared/utils';
 import { Logger } from '@/core/Logger';
 import { StateManager } from '@/core/StateManager';
@@ -198,8 +198,38 @@ function setupMessageBus(injector: PanelInjector): void {
     isInjected: injector.isAlreadyInjected(),
   }));
 
+  MessageBus.on('TOGGLE_PANEL', () => {
+    Logger.info(MODULE, 'Comando TOGGLE_PANEL recebido');
+    const isVisible = injector.toggleVisibility();
+    return { ok: true, isVisible };
+  });
+
+  MessageBus.on('SHOW_PANEL', () => {
+    const panel = injector.getActivePanel();
+    if (panel) panel.visibilityMgr.show();
+    else injector.inject();
+    return { ok: true, isVisible: true };
+  });
+
+  MessageBus.on('HIDE_PANEL', () => {
+    const panel = injector.getActivePanel();
+    if (panel) panel.visibilityMgr.close();
+    return { ok: true, isVisible: false };
+  });
+
   MessageBus.on('ALS_GET_STATE', () => ({
     state: StateManager.getState(),
+  }));
+
+  MessageBus.on('GET_DEBUG_STATE', () => ({
+    app: APP_NAME,
+    version: APP_VERSION,
+    url: window.location.href,
+    status: StateManager.live.status,
+    productsCount: StateManager.products.length,
+    pinnedProduct: StateManager.live.pinnedProductId,
+    metrics: StateManager.metrics,
+    automation: StateManager.settings.automation,
   }));
 
   MessageBus.on('ALS_HEARTBEAT', () => {

@@ -1,4 +1,11 @@
 const APP_NAME = "Copilo Live Shop";
+const TIKTOK_LIVE_URLS = [
+  "shop.tiktok.com/streamer",
+  "seller.tiktok.com",
+  "seller-us.tiktok.com",
+  "tiktok.com/live",
+  "tiktok.com/creator/live"
+];
 const STORAGE_KEYS = {
   INITIALIZED: "als_initialized"
 };
@@ -166,21 +173,31 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id) return;
-  Logger.info(MODULE, `Ação disparada pelo ícone na aba ${tab.id}`);
+  const currentUrl = tab.url || "";
+  Logger.info(MODULE, `Ação disparada pelo ícone na aba ${tab.id} [URL: ${currentUrl}]`);
+  const isTikTokShop = TIKTOK_LIVE_URLS.some((target) => currentUrl.includes(target));
+  if (!isTikTokShop) {
+    liveBgService.sendNotification(
+      APP_NAME,
+      "Abra uma transmissão ou painel do TikTok Shop (shop.tiktok.com/streamer) para utilizar o Copiloto de Lives.",
+      2
+    );
+    return;
+  }
   try {
-    const pingResponse = await chrome.tabs.sendMessage(tab.id, {
-      type: "ALS_PING",
+    const response = await chrome.tabs.sendMessage(tab.id, {
+      type: "TOGGLE_PANEL",
       timestamp: Date.now()
     }).catch(() => null);
-    if (!pingResponse) {
-      Logger.info(MODULE, "Injetando content script na página...");
+    if (!response) {
+      Logger.info(MODULE, "Content script não respondeu — injetando bootstrap na página...");
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         files: ["content/bootstrap.js"]
-      }).catch((err) => Logger.warn(MODULE, "Injeção direta falhou:", err));
+      });
     }
   } catch (err) {
-    Logger.warn(MODULE, "Erro ao comunicar com a aba ativa:", err);
+    Logger.warn(MODULE, "Erro ao acionar painel na aba ativa:", err);
   }
 });
 Logger.info(MODULE, `✅ Service Worker do ${APP_NAME} ativo`);

@@ -1,6 +1,15 @@
 // ============================================================
-// Copilo Live Shop V2 — Shared Types
+// Auto Live Shop V2 — Shared Types
+// Tipos centrais do sistema com rastreamento de fonte e lives gravadas
 // ============================================================
+
+// ── Fonte dos Dados ───────────────────────────────────────────
+export type DataSource =
+  | 'NETWORK'
+  | 'PAGE_STATE'
+  | 'DOM'
+  | 'CALCULATED'
+  | 'UNKNOWN';
 
 // ── Status da LIVE ───────────────────────────────────────────
 export type LiveStatus =
@@ -15,6 +24,7 @@ export interface ActionResult<T = unknown> {
   success: boolean;
   error?: string;
   data?: T;
+  source?: DataSource;
 }
 
 // ── Produto da Live ───────────────────────────────────────────
@@ -22,20 +32,27 @@ export interface LiveProduct {
   id: string;
   name: string;
   price?: number;
+  originalPrice?: number;
   image?: string;
   position?: number;
   isPinned?: boolean;
   stock?: number;
+  status?: string;
+  source?: DataSource;
+  updatedAt?: number;
 }
 
 // ── Venda Detectada ───────────────────────────────────────────
 export interface Sale {
   id: string;
+  orderId?: string;
   productId?: string;
   productName?: string;
   amount?: number;
   quantity?: number;
   timestamp: number;
+  source: DataSource;
+  hash?: string;
 }
 
 // ── Métricas da Live ──────────────────────────────────────────
@@ -43,11 +60,29 @@ export interface LiveMetrics {
   gmv: number;
   soldItems: number;
   salesCount: number;
+  orders: number;
   salesPerHour: number;
   viewers: number;
   startedAt?: number;
   updatedAt: number;
-  source: 'tiktok' | 'calculated' | 'unknown';
+  source: DataSource | 'tiktok' | 'calculated' | 'unknown';
+}
+
+// ── Live Gravada / Transmissão Anterior ───────────────────────
+export interface RecordedLive {
+  id: string;
+  title: string;
+  coverUrl?: string;
+  startedAt: number;
+  endedAt?: number;
+  durationSecs?: number;
+  gmv?: number;
+  salesCount?: number;
+  ordersCount?: number;
+  soldItems?: number;
+  viewersPeak?: number;
+  status: 'completed' | 'recorded' | 'live';
+  source?: DataSource;
 }
 
 // ── Estado Central da Live ────────────────────────────────────
@@ -64,6 +99,7 @@ export interface LiveState {
   lastHeartbeat: number;
   metrics: LiveMetrics;
   sales: Sale[];
+  recordedLives?: RecordedLive[];
 }
 
 // ── Dimensões e Posição do Painel ─────────────────────────────
@@ -82,7 +118,6 @@ export interface PanelState {
   minimized: boolean;
   position: PanelPosition;
   size: PanelSize;
-  // Compatibilidade com acesso direto
   x?: number;
   y?: number;
   width?: number;
@@ -95,6 +130,10 @@ export interface AutomationSettings {
   selectedProductId?: string;
   renewalIntervalMs: number;
   cooldownMs: number;
+  lastExecution?: number;
+  nextExecution?: number;
+  executionCount?: number;
+  lastStatus?: string;
 }
 
 // ── Mensagens e Respostas Automáticas ─────────────────────────
@@ -123,7 +162,7 @@ export interface CartAlertMessage {
 export interface AppSettings {
   salesSoundEnabled: boolean;
   notificationsEnabled: boolean;
-  soundEnabled?: boolean; // alias de compatibilidade
+  soundEnabled?: boolean;
   gmvGoal: number | null;
   automation: AutomationSettings;
   chatMessages: ChatMessage[];
@@ -137,6 +176,7 @@ export interface AppSettings {
   guardianAction: 'end' | 'pause' | 'alert';
   licenseKey: string;
   licenseStatus: LicensePlan;
+  debugMode?: boolean;
 }
 
 // ── Licença ───────────────────────────────────────────────────
@@ -167,6 +207,19 @@ export interface GmvGoal {
 
 // ── Comandos do Sistema ───────────────────────────────────────
 export type AutoLiveCommand =
+  | 'TOGGLE_PANEL'
+  | 'SHOW_PANEL'
+  | 'HIDE_PANEL'
+  | 'GET_STATUS'
+  | 'REFRESH_PRODUCTS'
+  | 'PIN_PRODUCT'
+  | 'UNPIN_PRODUCT'
+  | 'START_AUTOMATION'
+  | 'STOP_AUTOMATION'
+  | 'REFRESH_METRICS'
+  | 'REFRESH_SALES'
+  | 'LOAD_RECORDED_LIVES'
+  | 'GET_DEBUG_STATE'
   | 'pin'
   | 'unpin'
   | 'refresh_products'
@@ -219,16 +272,22 @@ export type EventMap = {
   'sales:updated': Sale[];
   'sale:updated': Sale;
 
+  // Lives Gravadas
+  'recorded_lives:loaded': RecordedLive[];
+  'recorded_lives:updated': RecordedLive[];
+
   // Automação
   'automation:started': { productId: string; intervalSecs: number };
   'automation:stopped': void;
   'automation:repin': { productId: string };
+  'automation:tick': { nextSecs: number };
 
   // Painel
   'panel:toggle_minimize': void;
   'panel:minimized': boolean;
   'panel:restored': void;
   'panel:close': void;
+  'panel:toggle': void;
   'panel:tab_changed': string;
 
   // Toast

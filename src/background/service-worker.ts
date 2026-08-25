@@ -1,9 +1,9 @@
 // ============================================================
-// Copilo Live Shop V2 — Background Service Worker
+// Auto Live Shop V2 — Background Service Worker
 // Entry point de segundo plano para Manifest V3
 // ============================================================
 
-import { COMMANDS, STORAGE_KEYS, APP_NAME } from '@/shared/constants';
+import { COMMANDS, STORAGE_KEYS, APP_NAME, TIKTOK_LIVE_URLS } from '@/shared/constants';
 import { Logger } from '@/core/Logger';
 import { LiveBackgroundService } from './LiveBackgroundService';
 
@@ -74,26 +74,40 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 // ── Clique no Ícone da Extensão ───────────────────────────────
-// Injeta ou foca o painel flutuante na aba ativa
+// Alterna visibilidade ou injeta o painel flutuante na aba ativa
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id) return;
-  Logger.info(MODULE, `Ação disparada pelo ícone na aba ${tab.id}`);
+  const currentUrl = tab.url || '';
+  Logger.info(MODULE, `Ação disparada pelo ícone na aba ${tab.id} [URL: ${currentUrl}]`);
+
+  const isTikTokShop = TIKTOK_LIVE_URLS.some((target) => currentUrl.includes(target));
+
+  if (!isTikTokShop) {
+    liveBgService.sendNotification(
+      APP_NAME,
+      'Abra uma transmissão ou painel do TikTok Shop (shop.tiktok.com/streamer) para utilizar o Copiloto de Lives.',
+      2,
+    );
+    return;
+  }
 
   try {
-    const pingResponse = await chrome.tabs.sendMessage(tab.id, {
-      type: 'ALS_PING',
+    // 1. Tenta enviar comando TOGGLE_PANEL para o content script existente
+    const response = await chrome.tabs.sendMessage(tab.id, {
+      type: 'TOGGLE_PANEL',
       timestamp: Date.now(),
     }).catch(() => null);
 
-    if (!pingResponse) {
-      Logger.info(MODULE, 'Injetando content script na página...');
+    // 2. Se o content script ainda não estiver ativo na página, faz a injeção sob demanda
+    if (!response) {
+      Logger.info(MODULE, 'Content script não respondeu — injetando bootstrap na página...');
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         files: ['content/bootstrap.js'],
-      }).catch(err => Logger.warn(MODULE, 'Injeção direta falhou:', err));
+      });
     }
   } catch (err) {
-    Logger.warn(MODULE, 'Erro ao comunicar com a aba ativa:', err);
+    Logger.warn(MODULE, 'Erro ao acionar painel na aba ativa:', err);
   }
 });
 

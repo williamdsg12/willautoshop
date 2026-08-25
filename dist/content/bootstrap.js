@@ -144,7 +144,7 @@
     }
   }
   const Logger = new LoggerClass();
-  const MODULE$o = "EventBus";
+  const MODULE$q = "EventBus";
   class EventBusClass {
     listeners = /* @__PURE__ */ new Map();
     onceListeners = /* @__PURE__ */ new Map();
@@ -191,7 +191,7 @@
           try {
             cb(payload);
           } catch (err) {
-            Logger.error(MODULE$o, `Erro no listener do evento "${String(event)}":`, err);
+            Logger.error(MODULE$q, `Erro no listener do evento "${String(event)}":`, err);
           }
         });
       }
@@ -203,7 +203,7 @@
           try {
             cb(payload);
           } catch (err) {
-            Logger.error(MODULE$o, `Erro no once listener do evento "${String(event)}":`, err);
+            Logger.error(MODULE$q, `Erro no once listener do evento "${String(event)}":`, err);
           }
         });
       }
@@ -228,10 +228,11 @@
     }
   }
   const EventBus = new EventBusClass();
-  const MODULE$n = "StateManager";
+  const MODULE$p = "StateManager";
   function createDefaultMetrics() {
     return {
       gmv: 0,
+      orders: 0,
       soldItems: 0,
       salesCount: 0,
       salesPerHour: 0,
@@ -353,7 +354,7 @@
         try {
           sub(this._state);
         } catch (err) {
-          Logger.error(MODULE$n, "Erro ao notificar subscriber de estado:", err);
+          Logger.error(MODULE$p, "Erro ao notificar subscriber de estado:", err);
         }
       });
     }
@@ -433,7 +434,7 @@
     addSale(sale) {
       const isDuplicate = this._state.live.sales.some((s) => s.id === sale.id);
       if (isDuplicate) {
-        Logger.debug(MODULE$n, `Venda duplicada ignorada [ID: ${sale.id}]`);
+        Logger.debug(MODULE$p, `Venda duplicada ignorada [ID: ${sale.id}]`);
         return;
       }
       const sales = [sale, ...this._state.live.sales].slice(0, DEFAULTS.MAX_SALES_HISTORY);
@@ -480,7 +481,7 @@
         this._state.license = { ...createDefaultLicenseState(), ...partial.license };
       }
       this._notify();
-      Logger.info(MODULE$n, "Estado central hidratado com sucesso.");
+      Logger.info(MODULE$p, "Estado central hidratado com sucesso.");
     }
     reset() {
       this._state = {
@@ -494,7 +495,7 @@
     }
   }
   const StateManager = new StateManagerClass();
-  const MODULE$m = "StorageManager";
+  const MODULE$o = "StorageManager";
   class StorageManagerClass {
     inMemoryFallback = /* @__PURE__ */ new Map();
     isChromeStorageAvailable() {
@@ -511,7 +512,7 @@
         const result = await chrome.storage.local.get(key);
         return result[key] !== void 0 ? result[key] : defaultValue;
       } catch (err) {
-        Logger.error(MODULE$m, `Erro ao obter chave "${key}":`, err);
+        Logger.error(MODULE$o, `Erro ao obter chave "${key}":`, err);
         return defaultValue;
       }
     }
@@ -526,7 +527,7 @@
       try {
         await chrome.storage.local.set({ [key]: value });
       } catch (err) {
-        Logger.error(MODULE$m, `Erro ao salvar chave "${key}":`, err);
+        Logger.error(MODULE$o, `Erro ao salvar chave "${key}":`, err);
       }
     }
     /**
@@ -540,7 +541,7 @@
       try {
         await chrome.storage.local.remove(key);
       } catch (err) {
-        Logger.error(MODULE$m, `Erro ao remover chave "${key}":`, err);
+        Logger.error(MODULE$o, `Erro ao remover chave "${key}":`, err);
       }
     }
     /**
@@ -554,7 +555,7 @@
       try {
         await chrome.storage.local.clear();
       } catch (err) {
-        Logger.error(MODULE$m, "Erro ao limpar storage:", err);
+        Logger.error(MODULE$o, "Erro ao limpar storage:", err);
       }
     }
     /**
@@ -573,7 +574,7 @@
       try {
         return await chrome.storage.local.get(keys);
       } catch (err) {
-        Logger.error(MODULE$m, "Erro ao ler múltiplas chaves:", err);
+        Logger.error(MODULE$o, "Erro ao ler múltiplas chaves:", err);
         return {};
       }
     }
@@ -588,7 +589,7 @@
       try {
         await chrome.storage.local.set(items);
       } catch (err) {
-        Logger.error(MODULE$m, "Erro ao salvar múltiplos itens:", err);
+        Logger.error(MODULE$o, "Erro ao salvar múltiplos itens:", err);
       }
     }
     // ── Métodos de Alto Nível ───────────────────────────────────
@@ -633,7 +634,7 @@
     }
   }
   const StorageManager = new StorageManagerClass();
-  const MODULE$l = "MessageBus";
+  const MODULE$n = "MessageBus";
   class MessageBusClass {
     handlers = /* @__PURE__ */ new Map();
     isListening = false;
@@ -656,13 +657,13 @@
         timestamp: Date.now()
       };
       if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) {
-        Logger.warn(MODULE$l, `Ambiente Chrome não disponível para envio da mensagem "${type}"`);
+        Logger.warn(MODULE$n, `Ambiente Chrome não disponível para envio da mensagem "${type}"`);
         return null;
       }
       try {
         return await chrome.runtime.sendMessage(msg);
       } catch (err) {
-        Logger.warn(MODULE$l, `Erro ao enviar mensagem "${type}":`, err);
+        Logger.warn(MODULE$n, `Erro ao enviar mensagem "${type}":`, err);
         return null;
       }
     }
@@ -682,7 +683,7 @@
       try {
         return await chrome.tabs.sendMessage(tabId, msg);
       } catch (err) {
-        Logger.warn(MODULE$l, `Erro ao enviar para tab ${tabId} "${type}":`, err);
+        Logger.warn(MODULE$n, `Erro ao enviar para tab ${tabId} "${type}":`, err);
         return null;
       }
     }
@@ -702,7 +703,7 @@
           }
         }
       } catch (err) {
-        Logger.error(MODULE$l, `Erro ao disparar broadcast de "${type}":`, err);
+        Logger.error(MODULE$n, `Erro ao disparar broadcast de "${type}":`, err);
       }
     }
     /**
@@ -712,7 +713,7 @@
       try {
         sendResponse(data);
       } catch (err) {
-        Logger.error(MODULE$l, "Erro ao responder mensagem:", err);
+        Logger.error(MODULE$n, "Erro ao responder mensagem:", err);
       }
     }
     /**
@@ -721,7 +722,7 @@
     listen() {
       if (this.isListening) return;
       if (typeof chrome === "undefined" || !chrome.runtime?.onMessage) {
-        Logger.warn(MODULE$l, "chrome.runtime.onMessage indisponível no ambiente atual.");
+        Logger.warn(MODULE$n, "chrome.runtime.onMessage indisponível no ambiente atual.");
         return;
       }
       this.isListening = true;
@@ -733,7 +734,7 @@
           const result = handler(msg, sender);
           if (result instanceof Promise) {
             result.then((res) => sendResponse(res)).catch((err) => {
-              Logger.error(MODULE$l, `Erro assíncrono no handler "${msg.type}":`, err);
+              Logger.error(MODULE$n, `Erro assíncrono no handler "${msg.type}":`, err);
               sendResponse({ error: String(err) });
             });
             return true;
@@ -741,16 +742,16 @@
           sendResponse(result);
           return false;
         } catch (err) {
-          Logger.error(MODULE$l, `Erro no handler síncrono "${msg.type}":`, err);
+          Logger.error(MODULE$n, `Erro no handler síncrono "${msg.type}":`, err);
           sendResponse({ error: String(err) });
           return false;
         }
       });
-      Logger.info(MODULE$l, "Listener do MessageBus ativo");
+      Logger.info(MODULE$n, "Listener do MessageBus ativo");
     }
   }
   const MessageBus = new MessageBusClass();
-  const MODULE$k = "PageDetector";
+  const MODULE$m = "PageDetector";
   class PageDetector {
     lastRoute = "";
     /**
@@ -767,12 +768,125 @@
       const interval = setInterval(() => {
         const currentRoute = getCurrentRoute();
         if (currentRoute !== this.lastRoute) {
-          Logger.info(MODULE$k, `Navegação detectada: ${currentRoute}`);
+          Logger.info(MODULE$m, `Navegação detectada: ${currentRoute}`);
           this.lastRoute = currentRoute;
           onNavigate(currentRoute);
         }
       }, 1e3);
       return () => clearInterval(interval);
+    }
+  }
+  class Header {
+    container;
+    statusBadgeEl;
+    statusTextEl;
+    constructor(container, onMinimize, onClose) {
+      this.container = container;
+      this._render(onMinimize, onClose);
+      this._subscribe();
+    }
+    _render(onMinimize, onClose) {
+      this.container.innerHTML = `
+      <div class="als-header-left">
+        <div class="als-logo">▶</div>
+        <div class="als-brand">
+          <span class="als-brand-name">${APP_NAME.toUpperCase()}</span>
+          <span class="als-brand-sub">Copiloto de Lives</span>
+        </div>
+      </div>
+      <div class="als-header-right">
+        <div class="als-live-badge detecting" id="als-status-badge">
+          <span class="als-live-dot"></span>
+          <span id="als-status-text">DETECTANDO</span>
+        </div>
+        <button class="als-icon-btn" id="als-btn-minimize" title="Minimizar">−</button>
+        <button class="als-icon-btn" id="als-btn-close" title="Fechar">✕</button>
+      </div>
+    `;
+      this.statusBadgeEl = this.container.querySelector("#als-status-badge");
+      this.statusTextEl = this.container.querySelector("#als-status-text");
+      this.container.querySelector("#als-btn-minimize")?.addEventListener("click", onMinimize);
+      this.container.querySelector("#als-btn-close")?.addEventListener("click", onClose);
+    }
+    _subscribe() {
+      EventBus.on("live:status_changed", (status) => this.updateStatus(status));
+    }
+    updateStatus(status) {
+      this.statusBadgeEl.className = "als-live-badge";
+      const map = {
+        LIVE_DETECTING: { cls: "detecting", label: "DETECTANDO" },
+        LIVE_ACTIVE: { cls: "active", label: "AO VIVO" },
+        LIVE_INACTIVE: { cls: "inactive", label: "AGUARDANDO" },
+        LIVE_ENDED: { cls: "ended", label: "ENCERRADA" },
+        LIVE_ERROR: { cls: "error", label: "ERRO" }
+      };
+      const config = map[status] || map.LIVE_DETECTING;
+      this.statusBadgeEl.classList.add(config.cls);
+      this.statusTextEl.textContent = config.label;
+    }
+  }
+  class TabManager {
+    navContainer;
+    contentContainer;
+    currentTab = "painel";
+    constructor(navContainer, contentContainer) {
+      this.navContainer = navContainer;
+      this.contentContainer = contentContainer;
+      this._bindEvents();
+    }
+    _bindEvents() {
+      const buttons = this.navContainer.querySelectorAll(".als-tab-btn");
+      buttons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const tab = btn.dataset["tab"];
+          if (tab) {
+            this.switchTab(tab);
+          }
+        });
+      });
+    }
+    switchTab(tabId) {
+      this.currentTab = tabId;
+      const buttons = this.navContainer.querySelectorAll(".als-tab-btn");
+      buttons.forEach((b) => {
+        b.classList.toggle("active", b.dataset["tab"] === tabId);
+      });
+      const panes = this.contentContainer.querySelectorAll(".als-pane");
+      panes.forEach((p) => {
+        p.classList.toggle("active", p.id === `als-pane-${tabId}`);
+      });
+      EventBus.emit("panel:tab_changed", tabId);
+    }
+    getActiveTab() {
+      return this.currentTab;
+    }
+  }
+  class ToastManager {
+    container;
+    constructor(containerElement) {
+      this.container = containerElement;
+      this._subscribe();
+    }
+    _subscribe() {
+      EventBus.on("toast:show", (payload) => {
+        this.show(payload.message, payload.type, payload.duration);
+      });
+    }
+    /**
+     * Exibe um toast visual no painel.
+     */
+    show(message, type = "info", duration = DEFAULTS.TOAST_DURATION_MS) {
+      const toast = document.createElement("div");
+      toast.className = `als-toast ${type}`;
+      toast.textContent = message;
+      this.container.appendChild(toast);
+      while (this.container.children.length > DEFAULTS.MAX_TOASTS) {
+        this.container.firstChild?.remove();
+      }
+      setTimeout(() => {
+        toast.style.animation = "als-toastOut 0.25s ease forwards";
+        setTimeout(() => toast.remove(), 260);
+      }, duration);
     }
   }
   class PanelPositionManager {
@@ -951,119 +1065,6 @@
      */
     isMinimized() {
       return this.panelEl.classList.contains("minimized");
-    }
-  }
-  class Header {
-    container;
-    statusBadgeEl;
-    statusTextEl;
-    constructor(container, onMinimize, onClose) {
-      this.container = container;
-      this._render(onMinimize, onClose);
-      this._subscribe();
-    }
-    _render(onMinimize, onClose) {
-      this.container.innerHTML = `
-      <div class="als-header-left">
-        <div class="als-logo">▶</div>
-        <div class="als-brand">
-          <span class="als-brand-name">${APP_NAME.toUpperCase()}</span>
-          <span class="als-brand-sub">Copiloto de Lives</span>
-        </div>
-      </div>
-      <div class="als-header-right">
-        <div class="als-live-badge detecting" id="als-status-badge">
-          <span class="als-live-dot"></span>
-          <span id="als-status-text">DETECTANDO</span>
-        </div>
-        <button class="als-icon-btn" id="als-btn-minimize" title="Minimizar">−</button>
-        <button class="als-icon-btn" id="als-btn-close" title="Fechar">✕</button>
-      </div>
-    `;
-      this.statusBadgeEl = this.container.querySelector("#als-status-badge");
-      this.statusTextEl = this.container.querySelector("#als-status-text");
-      this.container.querySelector("#als-btn-minimize")?.addEventListener("click", onMinimize);
-      this.container.querySelector("#als-btn-close")?.addEventListener("click", onClose);
-    }
-    _subscribe() {
-      EventBus.on("live:status_changed", (status) => this.updateStatus(status));
-    }
-    updateStatus(status) {
-      this.statusBadgeEl.className = "als-live-badge";
-      const map = {
-        LIVE_DETECTING: { cls: "detecting", label: "DETECTANDO" },
-        LIVE_ACTIVE: { cls: "active", label: "AO VIVO" },
-        LIVE_INACTIVE: { cls: "inactive", label: "AGUARDANDO" },
-        LIVE_ENDED: { cls: "ended", label: "ENCERRADA" },
-        LIVE_ERROR: { cls: "error", label: "ERRO" }
-      };
-      const config = map[status] || map.LIVE_DETECTING;
-      this.statusBadgeEl.classList.add(config.cls);
-      this.statusTextEl.textContent = config.label;
-    }
-  }
-  class TabManager {
-    navContainer;
-    contentContainer;
-    currentTab = "painel";
-    constructor(navContainer, contentContainer) {
-      this.navContainer = navContainer;
-      this.contentContainer = contentContainer;
-      this._bindEvents();
-    }
-    _bindEvents() {
-      const buttons = this.navContainer.querySelectorAll(".als-tab-btn");
-      buttons.forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const tab = btn.dataset["tab"];
-          if (tab) {
-            this.switchTab(tab);
-          }
-        });
-      });
-    }
-    switchTab(tabId) {
-      this.currentTab = tabId;
-      const buttons = this.navContainer.querySelectorAll(".als-tab-btn");
-      buttons.forEach((b) => {
-        b.classList.toggle("active", b.dataset["tab"] === tabId);
-      });
-      const panes = this.contentContainer.querySelectorAll(".als-pane");
-      panes.forEach((p) => {
-        p.classList.toggle("active", p.id === `als-pane-${tabId}`);
-      });
-      EventBus.emit("panel:tab_changed", tabId);
-    }
-    getActiveTab() {
-      return this.currentTab;
-    }
-  }
-  class ToastManager {
-    container;
-    constructor(containerElement) {
-      this.container = containerElement;
-      this._subscribe();
-    }
-    _subscribe() {
-      EventBus.on("toast:show", (payload) => {
-        this.show(payload.message, payload.type, payload.duration);
-      });
-    }
-    /**
-     * Exibe um toast visual no painel.
-     */
-    show(message, type = "info", duration = DEFAULTS.TOAST_DURATION_MS) {
-      const toast = document.createElement("div");
-      toast.className = `als-toast ${type}`;
-      toast.textContent = message;
-      this.container.appendChild(toast);
-      while (this.container.children.length > DEFAULTS.MAX_TOASTS) {
-        this.container.firstChild?.remove();
-      }
-      setTimeout(() => {
-        toast.style.animation = "als-toastOut 0.25s ease forwards";
-        setTimeout(() => toast.remove(), 260);
-      }, duration);
     }
   }
   const TikTokSelectors = {
@@ -1289,7 +1290,7 @@
       ]
     }
   };
-  const MODULE$j = "TikTokLiveAdapter";
+  const MODULE$l = "TikTokLiveAdapter";
   class TikTokLiveAdapter {
     /**
      * Verifica no DOM se existe uma transmissão ativa.
@@ -1301,14 +1302,14 @@
       }
       const badge = queryWithFallbacks(TikTokSelectors.live.liveIndicator);
       if (badge && badge.textContent && /live|ao vivo|gravando/i.test(badge.textContent)) {
-        Logger.debug(MODULE$j, "Badge ativo encontrado no DOM");
+        Logger.debug(MODULE$l, "Badge ativo encontrado no DOM");
         return true;
       }
       const container = queryWithFallbacks(TikTokSelectors.live.streamerContainer);
       if (container) {
         const endBtn = queryWithFallbacks(TikTokSelectors.live.endLiveButton, container);
         if (endBtn) {
-          Logger.debug(MODULE$j, "Container de estúdio com botão de encerrar encontrado");
+          Logger.debug(MODULE$l, "Container de estúdio com botão de encerrar encontrado");
           return true;
         }
       }
@@ -1333,7 +1334,7 @@
           return match[1];
         }
       } catch (err) {
-        Logger.debug(MODULE$j, "Não foi possível extrair liveId:", err);
+        Logger.debug(MODULE$l, "Não foi possível extrair liveId:", err);
       }
       return void 0;
     }
@@ -1388,7 +1389,7 @@
           if (!isNaN(val)) metrics.soldItems = val;
         }
       } catch (err) {
-        Logger.warn(MODULE$j, "Erro ao extrair métricas do DOM:", err);
+        Logger.warn(MODULE$l, "Erro ao extrair métricas do DOM:", err);
         metrics.source = "unknown";
       }
       return metrics;
@@ -1406,7 +1407,7 @@
           };
         }
         btn.click();
-        Logger.info(MODULE$j, "Clique no botão de encerrar live executado");
+        Logger.info(MODULE$l, "Clique no botão de encerrar live executado");
         return { success: true };
       } catch (err) {
         return {
@@ -1416,7 +1417,7 @@
       }
     }
   }
-  const MODULE$i = "TikTokProductAdapter";
+  const MODULE$k = "TikTokProductAdapter";
   class TikTokProductAdapter {
     /**
      * Lê a lista de produtos disponíveis atualmente no DOM do TikTok Shop.
@@ -1424,7 +1425,7 @@
     getProducts() {
       const items = queryAllWithFallbacks(TikTokSelectors.products.item);
       if (!items.length) {
-        Logger.debug(MODULE$i, "Nenhum item de produto encontrado no DOM");
+        Logger.debug(MODULE$k, "Nenhum item de produto encontrado no DOM");
         return [];
       }
       const products = items.map((item, index) => {
@@ -1443,7 +1444,7 @@
           isPinned
         };
       });
-      Logger.debug(MODULE$i, `${products.length} produtos mapeados do DOM`);
+      Logger.debug(MODULE$k, `${products.length} produtos mapeados do DOM`);
       return products;
     }
     /**
@@ -1520,11 +1521,11 @@
           };
         }
         pinBtn.click();
-        Logger.info(MODULE$i, `Comando de fixação disparado para produto "${productId}"`);
+        Logger.info(MODULE$k, `Comando de fixação disparado para produto "${productId}"`);
         await sleep(750);
         const isConfirmed = this._verifyPinnedState(productId);
         if (!isConfirmed) {
-          Logger.warn(MODULE$i, `Ação de fixação do produto "${productId}" não confirmada pelo TikTok Shop`);
+          Logger.warn(MODULE$k, `Ação de fixação do produto "${productId}" não confirmada pelo TikTok Shop`);
           return {
             success: false,
             error: "Ação não confirmada pelo TikTok Shop"
@@ -1574,7 +1575,7 @@
             error: "Ação não confirmada pelo TikTok Shop"
           };
         }
-        Logger.info(MODULE$i, "Produto desafixado com sucesso");
+        Logger.info(MODULE$k, "Produto desafixado com sucesso");
         return { success: true };
       } catch (err) {
         return {
@@ -1591,7 +1592,7 @@
       return !!pinnedBadge;
     }
   }
-  const MODULE$h = "PlatformBridge";
+  const MODULE$j = "PlatformBridge";
   const BRIDGE_EVENTS = {
     COMMAND: "LIVE_REMOTE_COMMAND",
     STATE: "LIVE_REMOTE_STATE",
@@ -1636,7 +1637,7 @@
               this.sendResponse(envelope.correlationId, result);
             }
           } catch (err) {
-            Logger.error(MODULE$h, `Erro ao processar mensagem da ponte [${envelope.type}]:`, err);
+            Logger.error(MODULE$j, `Erro ao processar mensagem da ponte [${envelope.type}]:`, err);
             if (envelope.correlationId) {
               this.sendResponse(envelope.correlationId, { error: String(err) });
             }
@@ -1710,11 +1711,11 @@
       window.postMessage(envelope, "*");
     }
   }
-  const MODULE$g = "LiveRemoteAgent (ISOLATED)";
+  const MODULE$i = "LiveRemoteAgent (ISOLATED)";
   class LiveRemoteAgent {
     bridge = new PlatformBridge(false);
     constructor() {
-      Logger.info(MODULE$g, "Agente do Isolated World inicializado");
+      Logger.info(MODULE$i, "Agente do Isolated World inicializado");
     }
     /**
      * Envia comando de fixar produto para o MAIN WORLD.
@@ -1728,7 +1729,7 @@
           4e3
         );
       } catch (err) {
-        Logger.warn(MODULE$g, "Ponte falhou ao fixar produto, usando fallback:", err);
+        Logger.warn(MODULE$i, "Ponte falhou ao fixar produto, usando fallback:", err);
         return { success: false, error: String(err) };
       }
     }
@@ -1744,7 +1745,7 @@
           3e3
         );
       } catch (err) {
-        Logger.warn(MODULE$g, "Ponte falhou ao desafixar produto:", err);
+        Logger.warn(MODULE$i, "Ponte falhou ao desafixar produto:", err);
         return { success: false, error: String(err) };
       }
     }
@@ -1760,7 +1761,7 @@
           4e3
         );
       } catch (err) {
-        Logger.warn(MODULE$g, "Ponte falhou ao recarregar produtos:", err);
+        Logger.warn(MODULE$i, "Ponte falhou ao recarregar produtos:", err);
         return { success: false, error: String(err), data: [] };
       }
     }
@@ -1776,7 +1777,7 @@
           3e3
         );
       } catch (err) {
-        Logger.warn(MODULE$g, "Ponte falhou ao enviar chat:", err);
+        Logger.warn(MODULE$i, "Ponte falhou ao enviar chat:", err);
         return { success: false, error: String(err) };
       }
     }
@@ -1797,7 +1798,7 @@
     }
   }
   const liveRemoteAgent = new LiveRemoteAgent();
-  const MODULE$f = "TikTokShopAdapter";
+  const MODULE$h = "TikTokShopAdapter";
   class TikTokShopAdapter {
     live = new TikTokLiveAdapter();
     products = new TikTokProductAdapter();
@@ -1814,16 +1815,16 @@
       return this.products.getPinnedProduct();
     }
     async pinProduct(productId) {
-      Logger.info(MODULE$f, `pinProduct chamado para ID: ${productId}`);
+      Logger.info(MODULE$h, `pinProduct chamado para ID: ${productId}`);
       const remoteRes = await liveRemoteAgent.pinProduct(productId);
       if (remoteRes.success) {
         return remoteRes;
       }
-      Logger.info(MODULE$f, "Tentando fixação via fallback no DOM local...");
+      Logger.info(MODULE$h, "Tentando fixação via fallback no DOM local...");
       return this.products.pinProduct(productId);
     }
     async unpinProduct() {
-      Logger.info(MODULE$f, "unpinProduct chamado");
+      Logger.info(MODULE$h, "unpinProduct chamado");
       const remoteRes = await liveRemoteAgent.unpinProduct();
       if (remoteRes.success) {
         return remoteRes;
@@ -1866,7 +1867,7 @@
         const sendBtn = queryWithFallbacks(TikTokSelectors.chat.sendButton);
         if (sendBtn) {
           sendBtn.click();
-          Logger.info(MODULE$f, `Mensagem enviada no chat: "${text.substring(0, 30)}..."`);
+          Logger.info(MODULE$h, `Mensagem enviada no chat: "${text.substring(0, 30)}..."`);
           return { success: true };
         }
         input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", keyCode: 13, bubbles: true }));
@@ -1883,7 +1884,7 @@
     }
   }
   const tiktokAdapter = new TikTokShopAdapter();
-  const MODULE$e = "LiveController";
+  const MODULE$g = "LiveController";
   class LiveController {
     /**
      * Inicia ou retoma o estado ativo da transmissão local.
@@ -1897,7 +1898,7 @@
         message: "🔴 Transmissão iniciada no Copilo Live Shop",
         type: "success"
       });
-      Logger.info(MODULE$e, "Live iniciada manualmente via controller");
+      Logger.info(MODULE$g, "Live iniciada manualmente via controller");
       return {
         success: true,
         data: { startedAt }
@@ -1907,7 +1908,7 @@
      * Encerra a LIVE no TikTok Shop e no estado local.
      */
     async endLive() {
-      Logger.info(MODULE$e, "Comando de encerramento da LIVE acionado");
+      Logger.info(MODULE$g, "Comando de encerramento da LIVE acionado");
       const result = await tiktokAdapter.endLive();
       StateManager.setLiveStatus("LIVE_ENDED");
       EventBus.emit("live:ended");
@@ -1930,13 +1931,13 @@
       return StateManager.live.status === "LIVE_ACTIVE" || tiktokAdapter.isLiveActive();
     }
   }
-  const MODULE$d = "SalesController";
+  const MODULE$f = "SalesController";
   class SalesController {
     /**
      * Registra manualmente uma nova venda ou dispara processamento de venda.
      */
     registerSale(sale) {
-      Logger.info(MODULE$d, `Registrando venda: ${sale.productName} (R$ ${sale.amount})`);
+      Logger.info(MODULE$f, `Registrando venda: ${sale.productName} (R$ ${sale.amount})`);
       StateManager.addSale(sale);
       StorageManager.saveSalesHistory([...StateManager.sales]).catch(() => {
       });
@@ -2041,7 +2042,7 @@
       this.salesCtrl.clearSales();
     }
   }
-  const MODULE$c = "ProductController";
+  const MODULE$e = "ProductController";
   class ProductController {
     /**
      * Recarrega a lista de produtos do TikTok Shop.
@@ -2051,14 +2052,14 @@
         const result = await tiktokAdapter.refreshProducts();
         if (result.success && result.data) {
           StateManager.setProducts(result.data);
-          Logger.info(MODULE$c, `${result.data.length} produtos sincronizados`);
+          Logger.info(MODULE$e, `${result.data.length} produtos sincronizados`);
           return result;
         }
         const currentProducts = tiktokAdapter.getProducts();
         StateManager.setProducts(currentProducts);
         return { success: true, data: currentProducts };
       } catch (err) {
-        Logger.error(MODULE$c, "Erro ao atualizar catálogo de produtos:", err);
+        Logger.error(MODULE$e, "Erro ao atualizar catálogo de produtos:", err);
         return { success: false, error: String(err) };
       }
     }
@@ -2069,7 +2070,7 @@
       if (!productId) {
         return { success: false, error: "Identificador do produto é obrigatório" };
       }
-      Logger.info(MODULE$c, `Fixando produto ID: ${productId}`);
+      Logger.info(MODULE$e, `Fixando produto ID: ${productId}`);
       const result = await tiktokAdapter.pinProduct(productId);
       if (result.success) {
         StateManager.setPinnedProduct(productId);
@@ -2092,7 +2093,7 @@
      * Desafixa o produto fixado na LIVE.
      */
     async unpinProduct() {
-      Logger.info(MODULE$c, "Desafixando produto atual");
+      Logger.info(MODULE$e, "Desafixando produto atual");
       const result = await tiktokAdapter.unpinProduct();
       if (result.success) {
         StateManager.setPinnedProduct(void 0);
@@ -2131,6 +2132,9 @@
      * Recarrega catálogo de produtos da transmissão.
      */
     async refreshCatalog() {
+      return this.productCtrl.refreshProducts();
+    }
+    async refreshProducts() {
       return this.productCtrl.refreshProducts();
     }
     /**
@@ -2248,16 +2252,19 @@
       };
     }
   }
-  const MODULE$b = "AutomationController";
+  const MODULE$d = "AutomationController";
   class AutomationController {
     repinTimer = null;
+    tickTimer = null;
     productCtrl = new ProductController();
     lastActionTimestamp = 0;
+    nextActionTimestamp = 0;
+    executionCount = 0;
     isProcessing = false;
     constructor() {
       EventBus.on("live:ended", () => {
         if (this.isRunning()) {
-          Logger.info(MODULE$b, "LIVE encerrada — desligando renovação automática de produto");
+          Logger.info(MODULE$d, "LIVE encerrada — desligando renovação automática de produto");
           this.stop();
           EventBus.emit("toast:show", {
             message: "LIVE encerrada — renovação de produto desligada",
@@ -2277,12 +2284,11 @@
         });
         return false;
       }
-      if (StateManager.live.status !== "LIVE_ACTIVE") {
-        Logger.warn(MODULE$b, "Tentativa de iniciar automação sem LIVE ativa");
-      }
       this.stop();
       const intervalMs = Math.max(10, intervalSecs) * 1e3;
-      Logger.info(MODULE$b, `Iniciando automação: Produto ${productId}, Intervalo ${intervalSecs}s`);
+      Logger.info(MODULE$d, `Iniciando automação: Produto ${productId}, Intervalo ${intervalSecs}s`);
+      this.executionCount = 0;
+      this.nextActionTimestamp = Date.now() + intervalMs;
       StateManager.patchLive({
         automationEnabled: true,
         automationProductId: productId,
@@ -2293,7 +2299,11 @@
           enabled: true,
           selectedProductId: productId,
           renewalIntervalMs: intervalMs,
-          cooldownMs: DEFAULTS.AUTO_COOLDOWN_MS
+          cooldownMs: DEFAULTS.AUTO_COOLDOWN_MS,
+          lastExecution: Date.now(),
+          nextExecution: this.nextActionTimestamp,
+          executionCount: 0,
+          lastStatus: "Ativo"
         }
       });
       EventBus.emit("automation:started", { productId, intervalSecs });
@@ -2303,27 +2313,37 @@
       });
       this._executeRepin(productId);
       this.repinTimer = setInterval(() => {
+        this.nextActionTimestamp = Date.now() + intervalMs;
         this._executeRepin(productId);
       }, intervalMs);
+      this.tickTimer = setInterval(() => {
+        const remainingSecs = Math.max(0, Math.ceil((this.nextActionTimestamp - Date.now()) / 1e3));
+        EventBus.emit("automation:tick", { nextSecs: remainingSecs });
+      }, 1e3);
       return true;
     }
     /**
-     * Encerra o timer de automação.
+     * Encerra a automação.
      */
     stop() {
       if (this.repinTimer) {
         clearInterval(this.repinTimer);
         this.repinTimer = null;
       }
+      if (this.tickTimer) {
+        clearInterval(this.tickTimer);
+        this.tickTimer = null;
+      }
       StateManager.patchLive({ automationEnabled: false });
       StateManager.patchSettings({
         automation: {
           ...StateManager.settings.automation,
-          enabled: false
+          enabled: false,
+          lastStatus: "Parado"
         }
       });
       EventBus.emit("automation:stopped");
-      Logger.info(MODULE$b, "Automação parada");
+      Logger.info(MODULE$d, "Automação parada com sucesso");
     }
     /**
      * Verifica se a automação está rodando.
@@ -2334,8 +2354,8 @@
     async _executeRepin(productId) {
       if (this.isProcessing) return;
       const now = Date.now();
-      if (now - this.lastActionTimestamp < DEFAULTS.AUTO_COOLDOWN_MS) {
-        Logger.debug(MODULE$b, "Cooldown ativo — ignorando ciclo de renovação");
+      if (now - this.lastActionTimestamp < DEFAULTS.AUTO_COOLDOWN_MS && this.executionCount > 0) {
+        Logger.debug(MODULE$d, "Cooldown ativo — aguardando próximo ciclo");
         return;
       }
       if (StateManager.live.status === "LIVE_ENDED" || StateManager.live.status === "LIVE_INACTIVE") {
@@ -2344,12 +2364,21 @@
       }
       this.isProcessing = true;
       this.lastActionTimestamp = now;
+      this.executionCount++;
       try {
-        Logger.debug(MODULE$b, `Executando renovação de fixação para produto: ${productId}`);
+        Logger.debug(MODULE$d, `[#${this.executionCount}] Renovando fixação do produto: ${productId}`);
         EventBus.emit("automation:repin", { productId });
         await this.productCtrl.pinProduct(productId);
+        StateManager.patchSettings({
+          automation: {
+            ...StateManager.settings.automation,
+            lastExecution: now,
+            executionCount: this.executionCount,
+            lastStatus: "Sucesso"
+          }
+        });
       } catch (err) {
-        Logger.error(MODULE$b, "Erro durante renovação automática de produto:", err);
+        Logger.error(MODULE$d, "Erro durante renovação automática de produto:", err);
       } finally {
         this.isProcessing = false;
       }
@@ -2406,6 +2435,19 @@
       return updated;
     }
     /**
+     * Adiciona nova regra de resposta automática.
+     */
+    async addAutoResponse(triggers, text) {
+      const newRule = {
+        id: Date.now(),
+        triggers,
+        text,
+        scope: "all",
+        active: true
+      };
+      return this.saveAutoResponse(newRule);
+    }
+    /**
      * Remove regra de resposta automática.
      */
     async removeAutoResponse(id) {
@@ -2416,7 +2458,7 @@
       return updated;
     }
   }
-  const MODULE$a = "LicenseManager";
+  const MODULE$c = "LicenseManager";
   class LicenseManager {
     /**
      * Valida uma chave de ativação localmente ou via backend futuro.
@@ -2429,12 +2471,12 @@
       }
       if (cleanKey.startsWith("PRO-") && cleanKey.length >= 10) {
         this._updatePlan("PRO", true, cleanKey);
-        Logger.info(MODULE$a, "Plano PRO ativado com sucesso");
+        Logger.info(MODULE$c, "Plano PRO ativado com sucesso");
         return { status: "PRO", valid: true, message: "Licença PRO ativada com sucesso!" };
       }
       if (cleanKey.startsWith("PREMIUM-") && cleanKey.length >= 14) {
         this._updatePlan("PREMIUM", true, cleanKey);
-        Logger.info(MODULE$a, "Plano PREMIUM ativado com sucesso");
+        Logger.info(MODULE$c, "Plano PREMIUM ativado com sucesso");
         return { status: "PREMIUM", valid: true, message: "Licença PREMIUM ativada com sucesso!" };
       }
       this._updatePlan("FREE", false);
@@ -2506,6 +2548,97 @@
      */
     getLicense() {
       return this.licenseMgr.getLicense();
+    }
+  }
+  const MODULE$b = "RecordedLivesProvider";
+  class RecordedLivesProvider {
+    /**
+     * Varre o DOM em busca de cards ou listas de lives gravadas/anteriores.
+     */
+    async fetchRecordedLives() {
+      Logger.info(MODULE$b, "Buscando histórico de transmissões e lives gravadas...");
+      try {
+        const records = this._scanDomRecordedLives();
+        if (records.length > 0) {
+          Logger.info(MODULE$b, `✅ ${records.length} lives gravadas localizadas`);
+          return { success: true, data: records, source: "DOM" };
+        }
+        Logger.info(MODULE$b, "Nenhuma live gravada visível no painel atual");
+        return {
+          success: true,
+          data: [],
+          error: "Nenhuma transmissão gravada localizada nesta página.",
+          source: "UNKNOWN"
+        };
+      } catch (err) {
+        Logger.error(MODULE$b, "Erro ao obter lives gravadas:", err);
+        return { success: false, error: String(err), data: [], source: "UNKNOWN" };
+      }
+    }
+    /**
+     * Extração de dados a partir de listas de histórico de live.
+     */
+    _scanDomRecordedLives() {
+      const selectors = [
+        '[class*="live-record-item"]',
+        '[class*="live-history-item"]',
+        '[class*="stream-history-row"]',
+        '[data-testid="live-record-card"]',
+        ".live-record-card"
+      ];
+      const nodes = queryAllWithFallbacks(selectors);
+      const lives = [];
+      nodes.forEach((node, index) => {
+        const el = node;
+        const titleEl = queryWithFallbacks(['[class*="title"]', "h3", "h4"], el);
+        queryWithFallbacks(['[class*="date"]', '[class*="time"]'], el);
+        const gmvEl = queryWithFallbacks(['[class*="gmv"]', '[class*="revenue"]', '[class*="amount"]'], el);
+        const ordersEl = queryWithFallbacks(['[class*="order"]', '[class*="sales"]'], el);
+        const imgEl = el.querySelector("img");
+        const rawGmv = gmvEl?.textContent?.replace(/[^0-9.,]/g, "").replace(",", ".") || "0";
+        const gmv = parseFloat(rawGmv) || void 0;
+        const rawOrders = ordersEl?.textContent?.replace(/[^0-9]/g, "") || "0";
+        const orders = parseInt(rawOrders, 10) || void 0;
+        lives.push({
+          id: el.dataset["id"] || `live-rec-${index + 1}`,
+          title: titleEl?.textContent?.trim() || `Transmissão ${index + 1}`,
+          coverUrl: imgEl?.src || void 0,
+          startedAt: Date.now() - (index + 1) * 864e5,
+          gmv,
+          ordersCount: orders,
+          status: "recorded",
+          source: "DOM"
+        });
+      });
+      return lives;
+    }
+  }
+  const recordedLivesProvider = new RecordedLivesProvider();
+  const MODULE$a = "RecordedLivesModule";
+  class RecordedLivesModule {
+    lives = [];
+    selectedLive = null;
+    async loadRecordedLives() {
+      Logger.info(MODULE$a, "Carregando lista de lives gravadas...");
+      const result = await recordedLivesProvider.fetchRecordedLives();
+      this.lives = result.data || [];
+      EventBus.emit("recorded_lives:loaded", this.lives);
+      return this.lives;
+    }
+    getLives() {
+      return this.lives;
+    }
+    filterLives(query) {
+      if (!query) return this.lives;
+      const lower = query.toLowerCase();
+      return this.lives.filter((live) => live.title.toLowerCase().includes(lower));
+    }
+    selectLive(id) {
+      this.selectedLive = this.lives.find((l) => l.id === id) || null;
+      return this.selectedLive;
+    }
+    getSelectedLive() {
+      return this.selectedLive;
     }
   }
   const MODULE$9 = "AudioManager";
@@ -2608,29 +2741,30 @@
       return this.unlocked;
     }
   }
-  const panelCss = "\n@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');\n/* ============================================================\n   Auto Live Shop V2 — Estilos do Floating Panel\n   Injetado via Shadow DOM — isolado do TikTok\n   ============================================================ */\n\n/* ── Fonte ────────────────────────────────────────────────── */\n\n/* ── Tokens de design ────────────────────────────────────────*/\n:host {\n  display: block;\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 0;\n  height: 0;\n  z-index: 2147483647;\n  pointer-events: none;\n  --bg:          #080d1a;\n  --bg-card:     #0d1525;\n  --bg-card-alt: #111c30;\n  --bg-sub:      #0a1220;\n  --border:      #1e2d47;\n  --border-light:#2a3f5c;\n  --green:       #22c55e;\n  --green-dim:   #16a34a;\n  --green-glow:  rgba(34,197,94,0.18);\n  --teal:        #14b8a6;\n  --teal-dim:    #0d8a7c;\n  --teal-glow:   rgba(20,184,166,0.15);\n  --teal-light:  #5eead4;\n  --red:         #ef4444;\n  --red-dim:     #b91c1c;\n  --orange:      #f97316;\n  --yellow:      #eab308;\n  --text-1:      #f0f6ff;\n  --text-2:      #94a3b8;\n  --text-3:      #64748b;\n  --shadow:      0 8px 32px rgba(0,0,0,0.7);\n  --radius:      12px;\n  --radius-sm:   8px;\n  --radius-xs:   5px;\n  --transition:  0.18s ease;\n  --font:        'Inter', system-ui, -apple-system, sans-serif;\n}\n\n*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n\n/* ── Painel raiz ──────────────────────────────────────────── */\n.als-panel {\n  position: fixed;\n  top: var(--als-y, 80px);\n  left: var(--als-x, 16px);\n  width: var(--als-w, 320px);\n  height: var(--als-h, 560px);\n  z-index: 2147483647;\n  pointer-events: auto;\n  display: flex;\n  flex-direction: column;\n  background: var(--bg);\n  border: 1px solid var(--border-light);\n  border-radius: var(--radius);\n  box-shadow: var(--shadow);\n  font-family: var(--font);\n  font-size: 13px;\n  color: var(--text-1);\n  overflow: hidden;\n  user-select: none;\n  -webkit-font-smoothing: antialiased;\n  transition: box-shadow var(--transition);\n}\n.als-panel:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.8), 0 0 0 1px var(--border-light); }\n.als-panel.minimized { height: 48px !important; overflow: hidden; }\n.als-panel.hidden { display: none !important; }\n\n/* ── Scrollbar ────────────────────────────────────────────── */\n::-webkit-scrollbar { width: 3px; }\n::-webkit-scrollbar-track { background: transparent; }\n::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }\n\n/* ── Header / Drag handle ─────────────────────────────────── */\n.als-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 0 10px;\n  height: 48px;\n  min-height: 48px;\n  background: linear-gradient(135deg, #0d1525, #111c30);\n  border-bottom: 1px solid var(--border);\n  cursor: grab;\n  flex-shrink: 0;\n}\n.als-header:active { cursor: grabbing; }\n\n.als-header-left { display: flex; align-items: center; gap: 8px; }\n\n.als-logo {\n  width: 26px;\n  height: 26px;\n  background: linear-gradient(135deg, var(--teal), var(--teal-dim));\n  border-radius: 7px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 14px;\n  flex-shrink: 0;\n  box-shadow: 0 0 10px var(--teal-glow);\n}\n\n.als-brand { display: flex; flex-direction: column; line-height: 1.2; }\n.als-brand-name { font-size: 12px; font-weight: 800; color: var(--text-1); letter-spacing: -0.2px; }\n.als-brand-sub  { font-size: 9px; color: var(--teal); font-weight: 600; }\n\n.als-header-right { display: flex; align-items: center; gap: 4px; }\n\n/* Status badge no header */\n.als-live-badge {\n  display: inline-flex;\n  align-items: center;\n  gap: 5px;\n  padding: 3px 8px;\n  border-radius: 12px;\n  font-size: 9px;\n  font-weight: 800;\n  letter-spacing: 0.5px;\n  margin-right: 4px;\n}\n.als-live-badge.detecting { background: rgba(100,116,139,0.2); border: 1px solid rgba(100,116,139,0.4); color: var(--text-3); }\n.als-live-badge.active    { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #fc8181; }\n.als-live-badge.inactive  { background: rgba(100,116,139,0.15); border: 1px solid rgba(100,116,139,0.3); color: var(--text-3); }\n.als-live-badge.ended     { background: rgba(100,116,139,0.15); border: 1px solid rgba(100,116,139,0.3); color: var(--text-3); }\n.als-live-badge.error     { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #fc8181; }\n\n.als-live-dot {\n  width: 7px; height: 7px;\n  border-radius: 50%;\n  background: var(--red);\n  animation: als-pulse 1.4s infinite;\n  flex-shrink: 0;\n}\n@keyframes als-pulse {\n  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }\n  50%      { box-shadow: 0 0 0 5px rgba(239,68,68,0); }\n}\n.als-live-badge:not(.active) .als-live-dot { animation: none; background: var(--text-3); }\n\n.als-icon-btn {\n  background: none; border: none;\n  color: var(--text-3); cursor: pointer;\n  width: 26px; height: 26px;\n  border-radius: var(--radius-xs);\n  display: flex; align-items: center; justify-content: center;\n  font-size: 14px;\n  transition: color var(--transition), background var(--transition);\n}\n.als-icon-btn:hover { color: var(--text-1); background: rgba(255,255,255,0.06); }\n\n/* ── Tab Nav ──────────────────────────────────────────────── */\n.als-tab-nav {\n  display: grid;\n  grid-template-columns: repeat(4, 1fr);\n  background: var(--bg-card);\n  border-bottom: 1px solid var(--border);\n  flex-shrink: 0;\n}\n.als-tab-btn {\n  display: flex; flex-direction: column; align-items: center; justify-content: center;\n  gap: 2px; padding: 7px 4px;\n  background: none; border: none;\n  border-bottom: 2px solid transparent;\n  color: var(--text-3); cursor: pointer;\n  font-family: var(--font);\n  transition: color var(--transition), border-color var(--transition), background var(--transition);\n}\n.als-tab-btn:hover { color: var(--text-2); background: rgba(255,255,255,0.02); }\n.als-tab-btn.active { color: var(--green); border-bottom-color: var(--green); background: rgba(34,197,94,0.04); }\n.als-tab-icon  { font-size: 13px; }\n.als-tab-label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.3px; }\n\n/* ── Conteúdo ─────────────────────────────────────────────── */\n.als-content {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 10px;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n}\n\n/* ── Abas ─────────────────────────────────────────────────── */\n.als-pane { display: none; flex-direction: column; gap: 8px; animation: als-fadeIn 0.18s ease; }\n.als-pane.active { display: flex; }\n@keyframes als-fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }\n\n/* ── Cards ─────────────────────────────────────────────────── */\n.als-card {\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  padding: 12px;\n  transition: border-color var(--transition);\n}\n.als-card:hover { border-color: var(--border-light); }\n.als-card-sub {\n  background: var(--bg-sub);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-xs);\n  padding: 9px;\n  margin-top: 8px;\n}\n\n.als-card-header {\n  display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;\n}\n.als-card-title { font-size: 12px; font-weight: 700; color: var(--text-1); line-height: 1.3; }\n.als-card-desc  { font-size: 10px; color: var(--text-2); margin-top: 2px; line-height: 1.4; }\n\n/* ── Status cards ─────────────────────────────────────────── */\n.als-status-card {\n  background: linear-gradient(135deg, #0d1525, #0f1e35);\n  border-color: var(--border-light);\n  box-shadow: 0 0 20px rgba(20,184,166,0.12);\n}\n.als-empty-state {\n  text-align: center; color: var(--text-3);\n  padding: 20px 0; font-size: 11px; line-height: 1.6;\n}\n.als-empty-icon { font-size: 28px; margin-bottom: 8px; }\n\n/* ── Section label ────────────────────────────────────────── */\n.als-section-label {\n  font-size: 8.5px; font-weight: 800; color: var(--text-3);\n  letter-spacing: 1.2px; text-transform: uppercase;\n  padding: 2px 0;\n}\n\n/* ── Metrics grid ─────────────────────────────────────────── */\n.als-metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }\n.als-metric {\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  padding: 10px 8px; text-align: center;\n  transition: border-color var(--transition), box-shadow var(--transition);\n}\n.als-metric:hover { border-color: var(--green-dim); box-shadow: 0 0 10px var(--green-glow); }\n.als-metric-label { font-size: 8.5px; font-weight: 700; color: var(--text-3); letter-spacing: 0.8px; text-transform: uppercase; }\n.als-metric-value { font-size: 20px; font-weight: 900; color: var(--teal-light); line-height: 1.2; margin: 2px 0; font-variant-numeric: tabular-nums; }\n.als-metric-sub   { font-size: 9px; color: var(--text-3); }\n\n/* ── GMV hero ─────────────────────────────────────────────── */\n.als-gmv-hero { text-align: center; padding: 4px 0; }\n.als-gmv-label { font-size: 9px; font-weight: 700; color: var(--text-3); letter-spacing: 1px; text-transform: uppercase; }\n.als-gmv-value { font-size: 28px; font-weight: 900; color: var(--green); font-variant-numeric: tabular-nums; letter-spacing: -1px; line-height: 1.1; margin: 4px 0; text-shadow: 0 0 20px rgba(34,197,94,0.4); }\n.als-gmv-sub   { font-size: 10px; color: var(--text-2); }\n\n/* ── Progress bar (meta) ──────────────────────────────────── */\n.als-progress-wrap { margin-top: 8px; }\n.als-progress-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-2); margin-bottom: 4px; }\n.als-progress-track { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }\n.als-progress-fill  { height: 100%; background: linear-gradient(90deg, var(--green-dim), var(--green)); border-radius: 4px; transition: width 0.5s ease; }\n\n/* ── Sales feed ───────────────────────────────────────────── */\n.als-sales-feed { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }\n.als-sale-item {\n  display: flex; justify-content: space-between; align-items: center;\n  background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.15);\n  border-radius: 6px; padding: 6px 10px;\n  animation: als-slideIn 0.25s ease;\n}\n@keyframes als-slideIn { from { opacity:0; transform: translateX(-6px); } to { opacity:1; transform:none; } }\n.als-sale-name { font-size: 11px; font-weight: 600; color: var(--text-1); }\n.als-sale-meta { font-size: 10px; color: var(--text-3); }\n.als-sale-amount { font-size: 11px; font-weight: 700; color: var(--green); }\n\n/* ── Buttons ──────────────────────────────────────────────── */\n.als-btn {\n  display: inline-flex; align-items: center; gap: 4px;\n  border: none; border-radius: var(--radius-sm);\n  font-family: var(--font); font-weight: 600; cursor: pointer;\n  transition: all var(--transition); white-space: nowrap;\n}\n.als-btn-sm { padding: 6px 12px; font-size: 11px; }\n.als-btn-xs { padding: 4px 8px; font-size: 10px; }\n.als-btn-full { width: 100%; justify-content: center; }\n\n.als-btn-green {\n  background: linear-gradient(135deg, var(--green), var(--green-dim));\n  color: #fff; box-shadow: 0 2px 8px rgba(34,197,94,0.3);\n}\n.als-btn-green:hover { box-shadow: 0 4px 14px rgba(34,197,94,0.5); transform: translateY(-1px); }\n\n.als-btn-teal {\n  background: linear-gradient(135deg, var(--teal), var(--teal-dim));\n  color: #fff; box-shadow: 0 2px 8px rgba(20,184,166,0.3);\n}\n.als-btn-teal:hover { box-shadow: 0 4px 14px rgba(20,184,166,0.5); transform: translateY(-1px); }\n\n.als-btn-ghost {\n  background: var(--bg-card-alt); color: var(--text-2);\n  border: 1px solid var(--border);\n}\n.als-btn-ghost:hover { background: var(--border); color: var(--text-1); }\n\n.als-btn-danger {\n  background: linear-gradient(135deg, var(--red), var(--red-dim));\n  color: #fff; box-shadow: 0 2px 8px rgba(239,68,68,0.3);\n}\n.als-btn-danger:hover { box-shadow: 0 4px 14px rgba(239,68,68,0.5); transform: translateY(-1px); }\n\n/* ── Toggle switch ────────────────────────────────────────── */\n.als-toggle { position: relative; display: inline-flex; align-items: center; cursor: pointer; flex-shrink: 0; }\n.als-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }\n.als-toggle-slider {\n  width: 38px; height: 21px;\n  background: var(--border); border-radius: 11px;\n  position: relative; transition: background var(--transition); flex-shrink: 0;\n}\n.als-toggle-slider::after {\n  content: ''; position: absolute; top: 2.5px; left: 2.5px;\n  width: 16px; height: 16px; background: var(--text-3);\n  border-radius: 50%; transition: transform var(--transition), background var(--transition);\n}\n.als-toggle input:checked + .als-toggle-slider { background: var(--green); }\n.als-toggle input:checked + .als-toggle-slider::after { transform: translateX(17px); background: #fff; }\n\n.als-toggle-sm .als-toggle-slider { width: 30px; height: 17px; }\n.als-toggle-sm .als-toggle-slider::after { width: 13px; height: 13px; }\n.als-toggle-sm input:checked + .als-toggle-slider::after { transform: translateX(13px); }\n\n/* ── Toggle row ───────────────────────────────────────────── */\n.als-toggle-row {\n  display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 5px 0;\n}\n.als-toggle-row-label { font-size: 12px; font-weight: 600; color: var(--text-1); }\n.als-toggle-row-desc  { font-size: 10px; color: var(--text-2); margin-top: 1px; }\n\n/* ── Forms ────────────────────────────────────────────────── */\n.als-form-group { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }\n.als-form-label { font-size: 10px; font-weight: 600; color: var(--text-2); }\n.als-form-hint  { font-size: 9.5px; color: var(--text-3); }\n\n.als-input, .als-select, .als-textarea {\n  background: var(--bg-sub); border: 1px solid var(--border);\n  border-radius: var(--radius-xs); color: var(--text-1);\n  font-family: var(--font); font-size: 12px; padding: 6px 9px;\n  width: 100%; outline: none;\n  transition: border-color var(--transition), box-shadow var(--transition);\n}\n.als-input:focus, .als-select:focus, .als-textarea:focus {\n  border-color: var(--green); box-shadow: 0 0 0 2px var(--green-glow);\n}\n.als-select { appearance: none; cursor: pointer; padding-right: 24px; }\n.als-textarea { resize: vertical; min-height: 52px; }\n\n.als-select-wrap { position: relative; }\n.als-select-wrap::after { content:'▾'; position:absolute; right:8px; top:50%; transform:translateY(-50%); color:var(--text-3); pointer-events:none; font-size:11px; }\n\n.als-num-input {\n  background: var(--bg-sub); border: 1px solid var(--border);\n  border-radius: var(--radius-xs); color: var(--teal-light);\n  font-family: var(--font); font-size: 15px; font-weight: 700;\n  padding: 5px; text-align: center; width: 56px; outline: none;\n}\n.als-num-input:focus { border-color: var(--green); }\n\n.als-input-row { display: flex; align-items: center; gap: 6px; }\n.als-input-label { font-size: 10px; color: var(--text-2); white-space: nowrap; }\n\n/* ── Product list ─────────────────────────────────────────── */\n.als-product-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }\n.als-product-item {\n  display: flex; align-items: center; gap: 8px;\n  background: var(--bg-sub); border: 1px solid var(--border);\n  border-radius: var(--radius-xs); padding: 7px 9px;\n  transition: border-color var(--transition);\n}\n.als-product-item:hover { border-color: var(--border-light); }\n.als-product-item.pinned { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.04); }\n.als-product-pin-badge { font-size: 10px; color: var(--green); font-weight: 700; }\n.als-product-info { flex: 1; min-width: 0; }\n.als-product-name { font-size: 11px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n.als-product-price { font-size: 10px; color: var(--text-3); }\n.als-product-actions { display: flex; gap: 4px; flex-shrink: 0; }\n\n/* ── Message / reply list ─────────────────────────────────── */\n.als-msg-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }\n.als-msg-item {\n  display: flex; align-items: center; gap: 6px;\n  background: var(--bg-sub); border: 1px solid var(--border);\n  border-radius: var(--radius-xs); padding: 7px 9px;\n}\n.als-msg-item.active-item { border-color: rgba(34,197,94,0.25); }\n.als-msg-text { flex: 1; font-size: 11px; color: var(--text-1); line-height: 1.4; }\n.als-msg-actions { display: flex; gap: 4px; flex-shrink: 0; }\n\n.als-icon-btn-xs {\n  background: none; border: none; color: var(--text-3); cursor: pointer;\n  font-size: 12px; padding: 2px 4px; border-radius: 4px;\n  transition: color var(--transition), background var(--transition);\n}\n.als-icon-btn-xs:hover { color: var(--text-1); background: var(--border); }\n.als-icon-btn-xs.danger:hover { color: var(--red); }\n\n/* ── Trigger tags ─────────────────────────────────────────── */\n.als-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }\n.als-tag {\n  background: rgba(20,184,166,0.12); border: 1px solid rgba(20,184,166,0.25);\n  color: var(--teal-light); border-radius: 10px;\n  padding: 2px 7px; font-size: 9.5px; font-weight: 600;\n}\n\n/* ── Checkbox ─────────────────────────────────────────────── */\n.als-checkbox-list { display: flex; flex-direction: column; gap: 7px; }\n.als-checkbox-item { display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: 12px; color: var(--text-1); }\n.als-checkbox-item input { display: none; }\n.als-checkbox-custom {\n  width: 17px; height: 17px; border: 2px solid var(--border-light);\n  border-radius: 4px; background: var(--bg-sub); flex-shrink: 0;\n  position: relative; transition: all var(--transition);\n}\n.als-checkbox-custom::after {\n  content:''; position:absolute; top:2px; left:5px;\n  width:4px; height:8px; border: 2px solid #fff; border-top:none; border-left:none;\n  transform:rotate(45deg); opacity:0; transition: opacity var(--transition);\n}\n.als-checkbox-item input:checked + .als-checkbox-custom { background: var(--green); border-color: var(--green); }\n.als-checkbox-item input:checked + .als-checkbox-custom::after { opacity:1; }\n\n/* ── License card ─────────────────────────────────────────── */\n.als-license-card { background: linear-gradient(135deg, #0d1525, #101f38); border-color: rgba(34,197,94,0.25); }\n.als-badge { border-radius: 10px; padding: 2px 8px; font-size: 9.5px; font-weight: 700; }\n.als-badge-free    { background: rgba(100,116,139,0.2); border: 1px solid rgba(100,116,139,0.4); color: var(--text-3); }\n.als-badge-pro     { background: rgba(20,184,166,0.15); border: 1px solid rgba(20,184,166,0.4); color: var(--teal-light); }\n.als-badge-premium { background: rgba(234,179,8,0.15); border: 1px solid rgba(234,179,8,0.4); color: var(--yellow); }\n.als-badge-active  { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4); color: var(--green); }\n\n.als-input-eye-wrap { position: relative; }\n.als-input-eye-wrap .als-input { padding-right: 32px; }\n.als-eye-btn {\n  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);\n  background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 14px;\n}\n\n.als-link { font-size: 10px; color: var(--teal); text-decoration: none; border-bottom: 1px dashed var(--teal-dim); }\n.als-link:hover { color: var(--teal-light); }\n\n/* ── Collapsible ──────────────────────────────────────────── */\n.als-collapsible { display: none; }\n.als-collapsible.open { display: block; }\n\n/* ── Sliders ──────────────────────────────────────────────── */\n.als-range {\n  width: 100%; appearance: none; height: 3px;\n  background: var(--border); border-radius: 2px; outline: none; cursor: pointer;\n}\n.als-range::-webkit-slider-thumb {\n  appearance: none; width: 14px; height: 14px; border-radius: 50%;\n  background: var(--green); cursor: pointer; box-shadow: 0 0 5px rgba(34,197,94,0.5);\n}\n\n/* ── Toasts ───────────────────────────────────────────────── */\n.als-toasts {\n  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);\n  display: flex; flex-direction: column; gap: 5px;\n  width: calc(100% - 20px); z-index: 10; pointer-events: none;\n}\n.als-toast {\n  background: var(--bg-card-alt); border: 1px solid var(--border-light);\n  color: var(--text-1); padding: 7px 14px;\n  border-radius: 20px; font-size: 11px; font-weight: 600;\n  box-shadow: 0 4px 16px rgba(0,0,0,0.5);\n  animation: als-toastIn 0.25s ease;\n  text-align: center; pointer-events: none;\n}\n.als-toast.success { border-color: rgba(34,197,94,0.4); }\n.als-toast.warn    { border-color: rgba(239,68,68,0.4); }\n.als-toast.error   { border-color: rgba(239,68,68,0.6); background: rgba(239,68,68,0.1); }\n.als-toast.info    { border-color: rgba(20,184,166,0.4); }\n@keyframes als-toastIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }\n@keyframes als-toastOut { to { opacity:0; transform: translateY(6px); } }\n\n/* ── Footer ───────────────────────────────────────────────── */\n.als-footer { text-align: center; color: var(--text-3); font-size: 9px; padding: 8px 0 2px; }\n\n/* ── Utilities ────────────────────────────────────────────── */\n.mt4  { margin-top: 4px; }\n.mt6  { margin-top: 6px; }\n.mt8  { margin-top: 8px; }\n.mb4  { margin-bottom: 4px; }\n.flex-row { display: flex; gap: 6px; align-items: center; }\n.flex-between { display: flex; justify-content: space-between; align-items: center; gap: 6px; }\n.text-green { color: var(--green); }\n.text-red   { color: var(--red); }\n.text-teal  { color: var(--teal); }\n.text-muted { color: var(--text-3); font-size: 10px; }\n.bold       { font-weight: 700; }\n.w-full     { width: 100%; }\n";
+  const panelCss = "\n@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');\n/* ============================================================\n   Auto Live Shop V2 — Estilos do Floating Panel\n   Injetado via Shadow DOM — isolado do TikTok\n   ============================================================ */\n\n/* ── Fonte ────────────────────────────────────────────────── */\n\n/* ── Tokens de design ────────────────────────────────────────*/\n:host {\n  display: block;\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 0;\n  height: 0;\n  z-index: 2147483647;\n  pointer-events: none;\n  --bg:          #080d1a;\n  --bg-card:     #0d1525;\n  --bg-card-alt: #111c30;\n  --bg-sub:      #0a1220;\n  --border:      #1e2d47;\n  --border-light:#2a3f5c;\n  --green:       #22c55e;\n  --green-dim:   #16a34a;\n  --green-glow:  rgba(34,197,94,0.18);\n  --teal:        #14b8a6;\n  --teal-dim:    #0d8a7c;\n  --teal-glow:   rgba(20,184,166,0.15);\n  --teal-light:  #5eead4;\n  --red:         #ef4444;\n  --red-dim:     #b91c1c;\n  --orange:      #f97316;\n  --yellow:      #eab308;\n  --text-1:      #f0f6ff;\n  --text-2:      #94a3b8;\n  --text-3:      #64748b;\n  --shadow:      0 8px 32px rgba(0,0,0,0.7);\n  --radius:      12px;\n  --radius-sm:   8px;\n  --radius-xs:   5px;\n  --transition:  0.18s ease;\n  --font:        'Inter', system-ui, -apple-system, sans-serif;\n}\n\n*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n\n/* ── Painel raiz ──────────────────────────────────────────── */\n.als-panel {\n  position: fixed;\n  top: var(--als-y, 80px);\n  left: var(--als-x, 16px);\n  width: var(--als-w, 320px);\n  height: var(--als-h, 560px);\n  z-index: 2147483647;\n  pointer-events: auto;\n  display: flex;\n  flex-direction: column;\n  background: var(--bg);\n  border: 1px solid var(--border-light);\n  border-radius: var(--radius);\n  box-shadow: var(--shadow);\n  font-family: var(--font);\n  font-size: 13px;\n  color: var(--text-1);\n  overflow: hidden;\n  user-select: none;\n  -webkit-font-smoothing: antialiased;\n  transition: box-shadow var(--transition);\n}\n.als-panel:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.8), 0 0 0 1px var(--border-light); }\n.als-panel.minimized { height: 48px !important; overflow: hidden; }\n.als-panel.hidden { display: none !important; }\n\n/* ── Scrollbar ────────────────────────────────────────────── */\n::-webkit-scrollbar { width: 3px; }\n::-webkit-scrollbar-track { background: transparent; }\n::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }\n\n/* ── Header / Drag handle ─────────────────────────────────── */\n.als-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 0 10px;\n  height: 48px;\n  min-height: 48px;\n  background: linear-gradient(135deg, #0d1525, #111c30);\n  border-bottom: 1px solid var(--border);\n  cursor: grab;\n  flex-shrink: 0;\n}\n.als-header:active { cursor: grabbing; }\n\n.als-header-left { display: flex; align-items: center; gap: 8px; }\n\n.als-logo {\n  width: 26px;\n  height: 26px;\n  background: linear-gradient(135deg, var(--teal), var(--teal-dim));\n  border-radius: 7px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 14px;\n  flex-shrink: 0;\n  box-shadow: 0 0 10px var(--teal-glow);\n}\n\n.als-brand { display: flex; flex-direction: column; line-height: 1.2; }\n.als-brand-name { font-size: 12px; font-weight: 800; color: var(--text-1); letter-spacing: -0.2px; }\n.als-brand-sub  { font-size: 9px; color: var(--teal); font-weight: 600; }\n\n.als-header-right { display: flex; align-items: center; gap: 4px; }\n\n/* Status badge no header */\n.als-live-badge {\n  display: inline-flex;\n  align-items: center;\n  gap: 5px;\n  padding: 3px 8px;\n  border-radius: 12px;\n  font-size: 9px;\n  font-weight: 800;\n  letter-spacing: 0.5px;\n  margin-right: 4px;\n}\n.als-live-badge.detecting { background: rgba(100,116,139,0.2); border: 1px solid rgba(100,116,139,0.4); color: var(--text-3); }\n.als-live-badge.active    { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #fc8181; }\n.als-live-badge.inactive  { background: rgba(100,116,139,0.15); border: 1px solid rgba(100,116,139,0.3); color: var(--text-3); }\n.als-live-badge.ended     { background: rgba(100,116,139,0.15); border: 1px solid rgba(100,116,139,0.3); color: var(--text-3); }\n.als-live-badge.error     { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #fc8181; }\n\n.als-live-dot {\n  width: 7px; height: 7px;\n  border-radius: 50%;\n  background: var(--red);\n  animation: als-pulse 1.4s infinite;\n  flex-shrink: 0;\n}\n@keyframes als-pulse {\n  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }\n  50%      { box-shadow: 0 0 0 5px rgba(239,68,68,0); }\n}\n.als-live-badge:not(.active) .als-live-dot { animation: none; background: var(--text-3); }\n\n.als-icon-btn {\n  background: none; border: none;\n  color: var(--text-3); cursor: pointer;\n  width: 26px; height: 26px;\n  border-radius: var(--radius-xs);\n  display: flex; align-items: center; justify-content: center;\n  font-size: 14px;\n  transition: color var(--transition), background var(--transition);\n}\n.als-icon-btn:hover { color: var(--text-1); background: rgba(255,255,255,0.06); }\n\n/* ── Tab Nav (6 Abas) ─────────────────────────────────────── */\n.als-tab-nav {\n  display: grid;\n  grid-template-columns: repeat(6, 1fr);\n  background: var(--bg-card);\n  border-bottom: 1px solid var(--border);\n  flex-shrink: 0;\n}\n.als-tab-btn {\n  display: flex; flex-direction: column; align-items: center; justify-content: center;\n  gap: 2px; padding: 6px 2px;\n  background: none; border: none;\n  border-bottom: 2px solid transparent;\n  color: var(--text-3); cursor: pointer;\n  font-family: var(--font);\n  transition: color var(--transition), border-color var(--transition), background var(--transition);\n}\n.als-tab-btn:hover { color: var(--text-2); background: rgba(255,255,255,0.02); }\n.als-tab-btn.active { color: var(--green); border-bottom-color: var(--green); background: rgba(34,197,94,0.04); }\n.als-tab-icon  { font-size: 12px; }\n.als-tab-label { font-size: 7.5px; font-weight: 700; letter-spacing: 0.2px; text-transform: uppercase; }\n\n/* ── Conteúdo ─────────────────────────────────────────────── */\n.als-content {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 10px;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n}\n\n/* ── Abas ─────────────────────────────────────────────────── */\n.als-pane { display: none; flex-direction: column; gap: 8px; animation: als-fadeIn 0.18s ease; }\n.als-pane.active { display: flex; }\n@keyframes als-fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }\n\n/* ── Cards ─────────────────────────────────────────────────── */\n.als-card {\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  padding: 12px;\n  transition: border-color var(--transition);\n}\n.als-card:hover { border-color: var(--border-light); }\n.als-card-sub {\n  background: var(--bg-sub);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-xs);\n  padding: 9px;\n  margin-top: 8px;\n}\n\n.als-card-header {\n  display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;\n}\n.als-card-title { font-size: 12px; font-weight: 700; color: var(--text-1); line-height: 1.3; }\n.als-card-desc  { font-size: 10px; color: var(--text-2); margin-top: 2px; line-height: 1.4; }\n\n/* ── Status cards ─────────────────────────────────────────── */\n.als-status-card {\n  background: linear-gradient(135deg, #0d1525, #0f1e35);\n  border-color: var(--border-light);\n  box-shadow: 0 0 20px rgba(20,184,166,0.12);\n}\n.als-empty-state {\n  text-align: center; color: var(--text-3);\n  padding: 20px 0; font-size: 11px; line-height: 1.6;\n}\n.als-empty-icon { font-size: 28px; margin-bottom: 8px; }\n\n/* ── Section label ────────────────────────────────────────── */\n.als-section-label {\n  font-size: 8.5px; font-weight: 800; color: var(--text-3);\n  letter-spacing: 1.2px; text-transform: uppercase;\n  padding: 2px 0;\n}\n\n/* ── Metrics grid ─────────────────────────────────────────── */\n.als-metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }\n.als-metric {\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  padding: 10px 8px; text-align: center;\n  transition: border-color var(--transition), box-shadow var(--transition);\n}\n.als-metric:hover { border-color: var(--green-dim); box-shadow: 0 0 10px var(--green-glow); }\n.als-metric-label { font-size: 8.5px; font-weight: 700; color: var(--text-3); letter-spacing: 0.8px; text-transform: uppercase; }\n.als-metric-value { font-size: 20px; font-weight: 900; color: var(--teal-light); line-height: 1.2; margin: 2px 0; font-variant-numeric: tabular-nums; }\n.als-metric-sub   { font-size: 9px; color: var(--text-3); }\n\n/* ── GMV hero ─────────────────────────────────────────────── */\n.als-gmv-hero { text-align: center; padding: 4px 0; }\n.als-gmv-label { font-size: 9px; font-weight: 700; color: var(--text-3); letter-spacing: 1px; text-transform: uppercase; }\n.als-gmv-value { font-size: 28px; font-weight: 900; color: var(--green); font-variant-numeric: tabular-nums; letter-spacing: -1px; line-height: 1.1; margin: 4px 0; text-shadow: 0 0 20px rgba(34,197,94,0.4); }\n.als-gmv-sub   { font-size: 10px; color: var(--text-2); }\n\n/* ── Progress bar (meta) ──────────────────────────────────── */\n.als-progress-wrap { margin-top: 8px; }\n.als-progress-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-2); margin-bottom: 4px; }\n.als-progress-track { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }\n.als-progress-fill  { height: 100%; background: linear-gradient(90deg, var(--green-dim), var(--green)); border-radius: 4px; transition: width 0.5s ease; }\n\n/* ── Sales feed ───────────────────────────────────────────── */\n.als-sales-feed { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }\n.als-sale-item {\n  display: flex; justify-content: space-between; align-items: center;\n  background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.15);\n  border-radius: 6px; padding: 6px 10px;\n  animation: als-slideIn 0.25s ease;\n}\n@keyframes als-slideIn { from { opacity:0; transform: translateX(-6px); } to { opacity:1; transform:none; } }\n.als-sale-name { font-size: 11px; font-weight: 600; color: var(--text-1); }\n.als-sale-meta { font-size: 10px; color: var(--text-3); }\n.als-sale-amount { font-size: 11px; font-weight: 700; color: var(--green); }\n\n/* ── Buttons ──────────────────────────────────────────────── */\n.als-btn {\n  display: inline-flex; align-items: center; gap: 4px;\n  border: none; border-radius: var(--radius-sm);\n  font-family: var(--font); font-weight: 600; cursor: pointer;\n  transition: all var(--transition); white-space: nowrap;\n}\n.als-btn-sm { padding: 6px 12px; font-size: 11px; }\n.als-btn-xs { padding: 4px 8px; font-size: 10px; }\n.als-btn-full { width: 100%; justify-content: center; }\n\n.als-btn-green {\n  background: linear-gradient(135deg, var(--green), var(--green-dim));\n  color: #fff; box-shadow: 0 2px 8px rgba(34,197,94,0.3);\n}\n.als-btn-green:hover { box-shadow: 0 4px 14px rgba(34,197,94,0.5); transform: translateY(-1px); }\n\n.als-btn-teal {\n  background: linear-gradient(135deg, var(--teal), var(--teal-dim));\n  color: #fff; box-shadow: 0 2px 8px rgba(20,184,166,0.3);\n}\n.als-btn-teal:hover { box-shadow: 0 4px 14px rgba(20,184,166,0.5); transform: translateY(-1px); }\n\n.als-btn-ghost {\n  background: var(--bg-card-alt); color: var(--text-2);\n  border: 1px solid var(--border);\n}\n.als-btn-ghost:hover { background: var(--border); color: var(--text-1); }\n\n.als-btn-danger {\n  background: linear-gradient(135deg, var(--red), var(--red-dim));\n  color: #fff; box-shadow: 0 2px 8px rgba(239,68,68,0.3);\n}\n.als-btn-danger:hover { box-shadow: 0 4px 14px rgba(239,68,68,0.5); transform: translateY(-1px); }\n\n/* ── Toggle switch ────────────────────────────────────────── */\n.als-toggle { position: relative; display: inline-flex; align-items: center; cursor: pointer; flex-shrink: 0; }\n.als-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }\n.als-toggle-slider {\n  width: 38px; height: 21px;\n  background: var(--border); border-radius: 11px;\n  position: relative; transition: background var(--transition); flex-shrink: 0;\n}\n.als-toggle-slider::after {\n  content: ''; position: absolute; top: 2.5px; left: 2.5px;\n  width: 16px; height: 16px; background: var(--text-3);\n  border-radius: 50%; transition: transform var(--transition), background var(--transition);\n}\n.als-toggle input:checked + .als-toggle-slider { background: var(--green); }\n.als-toggle input:checked + .als-toggle-slider::after { transform: translateX(17px); background: #fff; }\n\n.als-toggle-sm .als-toggle-slider { width: 30px; height: 17px; }\n.als-toggle-sm .als-toggle-slider::after { width: 13px; height: 13px; }\n.als-toggle-sm input:checked + .als-toggle-slider::after { transform: translateX(13px); }\n\n/* ── Toggle row ───────────────────────────────────────────── */\n.als-toggle-row {\n  display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 5px 0;\n}\n.als-toggle-row-label { font-size: 12px; font-weight: 600; color: var(--text-1); }\n.als-toggle-row-desc  { font-size: 10px; color: var(--text-2); margin-top: 1px; }\n\n/* ── Forms ────────────────────────────────────────────────── */\n.als-form-group { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }\n.als-form-label { font-size: 10px; font-weight: 600; color: var(--text-2); }\n.als-form-hint  { font-size: 9.5px; color: var(--text-3); }\n\n.als-input, .als-select, .als-textarea {\n  background: var(--bg-sub); border: 1px solid var(--border);\n  border-radius: var(--radius-xs); color: var(--text-1);\n  font-family: var(--font); font-size: 12px; padding: 6px 9px;\n  width: 100%; outline: none;\n  transition: border-color var(--transition), box-shadow var(--transition);\n}\n.als-input:focus, .als-select:focus, .als-textarea:focus {\n  border-color: var(--green); box-shadow: 0 0 0 2px var(--green-glow);\n}\n.als-select { appearance: none; cursor: pointer; padding-right: 24px; }\n.als-textarea { resize: vertical; min-height: 52px; }\n\n.als-select-wrap { position: relative; }\n.als-select-wrap::after { content:'▾'; position:absolute; right:8px; top:50%; transform:translateY(-50%); color:var(--text-3); pointer-events:none; font-size:11px; }\n\n.als-num-input {\n  background: var(--bg-sub); border: 1px solid var(--border);\n  border-radius: var(--radius-xs); color: var(--teal-light);\n  font-family: var(--font); font-size: 15px; font-weight: 700;\n  padding: 5px; text-align: center; width: 56px; outline: none;\n}\n.als-num-input:focus { border-color: var(--green); }\n\n.als-input-row { display: flex; align-items: center; gap: 6px; }\n.als-input-label { font-size: 10px; color: var(--text-2); white-space: nowrap; }\n\n/* ── Product list ─────────────────────────────────────────── */\n.als-product-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }\n.als-product-item {\n  display: flex; align-items: center; gap: 8px;\n  background: var(--bg-sub); border: 1px solid var(--border);\n  border-radius: var(--radius-xs); padding: 7px 9px;\n  transition: border-color var(--transition);\n}\n.als-product-item:hover { border-color: var(--border-light); }\n.als-product-item.pinned { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.04); }\n.als-product-pin-badge { font-size: 10px; color: var(--green); font-weight: 700; }\n.als-product-info { flex: 1; min-width: 0; }\n.als-product-name { font-size: 11px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n.als-product-price { font-size: 10px; color: var(--text-3); }\n.als-product-actions { display: flex; gap: 4px; flex-shrink: 0; }\n\n/* ── Message / reply list ─────────────────────────────────── */\n.als-msg-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }\n.als-msg-item {\n  display: flex; align-items: center; gap: 6px;\n  background: var(--bg-sub); border: 1px solid var(--border);\n  border-radius: var(--radius-xs); padding: 7px 9px;\n}\n.als-msg-item.active-item { border-color: rgba(34,197,94,0.25); }\n.als-msg-text { flex: 1; font-size: 11px; color: var(--text-1); line-height: 1.4; }\n.als-msg-actions { display: flex; gap: 4px; flex-shrink: 0; }\n\n.als-icon-btn-xs {\n  background: none; border: none; color: var(--text-3); cursor: pointer;\n  font-size: 12px; padding: 2px 4px; border-radius: 4px;\n  transition: color var(--transition), background var(--transition);\n}\n.als-icon-btn-xs:hover { color: var(--text-1); background: var(--border); }\n.als-icon-btn-xs.danger:hover { color: var(--red); }\n\n/* ── Trigger tags ─────────────────────────────────────────── */\n.als-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }\n.als-tag {\n  background: rgba(20,184,166,0.12); border: 1px solid rgba(20,184,166,0.25);\n  color: var(--teal-light); border-radius: 10px;\n  padding: 2px 7px; font-size: 9.5px; font-weight: 600;\n}\n\n/* ── Checkbox ─────────────────────────────────────────────── */\n.als-checkbox-list { display: flex; flex-direction: column; gap: 7px; }\n.als-checkbox-item { display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: 12px; color: var(--text-1); }\n.als-checkbox-item input { display: none; }\n.als-checkbox-custom {\n  width: 17px; height: 17px; border: 2px solid var(--border-light);\n  border-radius: 4px; background: var(--bg-sub); flex-shrink: 0;\n  position: relative; transition: all var(--transition);\n}\n.als-checkbox-custom::after {\n  content:''; position:absolute; top:2px; left:5px;\n  width:4px; height:8px; border: 2px solid #fff; border-top:none; border-left:none;\n  transform:rotate(45deg); opacity:0; transition: opacity var(--transition);\n}\n.als-checkbox-item input:checked + .als-checkbox-custom { background: var(--green); border-color: var(--green); }\n.als-checkbox-item input:checked + .als-checkbox-custom::after { opacity:1; }\n\n/* ── License card ─────────────────────────────────────────── */\n.als-license-card { background: linear-gradient(135deg, #0d1525, #101f38); border-color: rgba(34,197,94,0.25); }\n.als-badge { border-radius: 10px; padding: 2px 8px; font-size: 9.5px; font-weight: 700; }\n.als-badge-free    { background: rgba(100,116,139,0.2); border: 1px solid rgba(100,116,139,0.4); color: var(--text-3); }\n.als-badge-pro     { background: rgba(20,184,166,0.15); border: 1px solid rgba(20,184,166,0.4); color: var(--teal-light); }\n.als-badge-premium { background: rgba(234,179,8,0.15); border: 1px solid rgba(234,179,8,0.4); color: var(--yellow); }\n.als-badge-active  { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4); color: var(--green); }\n\n.als-input-eye-wrap { position: relative; }\n.als-input-eye-wrap .als-input { padding-right: 32px; }\n.als-eye-btn {\n  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);\n  background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 14px;\n}\n\n.als-link { font-size: 10px; color: var(--teal); text-decoration: none; border-bottom: 1px dashed var(--teal-dim); }\n.als-link:hover { color: var(--teal-light); }\n\n/* ── Collapsible ──────────────────────────────────────────── */\n.als-collapsible { display: none; }\n.als-collapsible.open { display: block; }\n\n/* ── Sliders ──────────────────────────────────────────────── */\n.als-range {\n  width: 100%; appearance: none; height: 3px;\n  background: var(--border); border-radius: 2px; outline: none; cursor: pointer;\n}\n.als-range::-webkit-slider-thumb {\n  appearance: none; width: 14px; height: 14px; border-radius: 50%;\n  background: var(--green); cursor: pointer; box-shadow: 0 0 5px rgba(34,197,94,0.5);\n}\n\n/* ── Toasts ───────────────────────────────────────────────── */\n.als-toasts {\n  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);\n  display: flex; flex-direction: column; gap: 5px;\n  width: calc(100% - 20px); z-index: 10; pointer-events: none;\n}\n.als-toast {\n  background: var(--bg-card-alt); border: 1px solid var(--border-light);\n  color: var(--text-1); padding: 7px 14px;\n  border-radius: 20px; font-size: 11px; font-weight: 600;\n  box-shadow: 0 4px 16px rgba(0,0,0,0.5);\n  animation: als-toastIn 0.25s ease;\n  text-align: center; pointer-events: none;\n}\n.als-toast.success { border-color: rgba(34,197,94,0.4); }\n.als-toast.warn    { border-color: rgba(239,68,68,0.4); }\n.als-toast.error   { border-color: rgba(239,68,68,0.6); background: rgba(239,68,68,0.1); }\n.als-toast.info    { border-color: rgba(20,184,166,0.4); }\n@keyframes als-toastIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }\n@keyframes als-toastOut { to { opacity:0; transform: translateY(6px); } }\n\n/* ── Footer ───────────────────────────────────────────────── */\n.als-footer { text-align: center; color: var(--text-3); font-size: 9px; padding: 8px 0 2px; }\n\n/* ── Utilities ────────────────────────────────────────────── */\n.mt4  { margin-top: 4px; }\n.mt6  { margin-top: 6px; }\n.mt8  { margin-top: 8px; }\n.mb4  { margin-bottom: 4px; }\n.flex-row { display: flex; gap: 6px; align-items: center; }\n.flex-between { display: flex; justify-content: space-between; align-items: center; gap: 6px; }\n.text-green { color: var(--green); }\n.text-red   { color: var(--red); }\n.text-teal  { color: var(--teal); }\n.text-muted { color: var(--text-3); font-size: 10px; }\n.bold       { font-weight: 700; }\n.w-full     { width: 100%; }\n";
   const MODULE$8 = "FloatingPanel";
   class FloatingPanel {
     host;
     shadow;
     panelEl;
-    // Gerenciadores de UI
+    // Gerenciadores de Painel
     positionMgr;
     dragMgr;
     visibilityMgr;
-    headerComp;
     tabMgr;
     toastMgr;
-    // Módulos
+    headerComp;
+    // Módulos de Negócio
     dashboardMod = new DashboardModule();
     productsMod = new ProductsModule();
     salesMod = new SalesModule();
     goalsMod = new GoalsModule();
     automationMod = new AutomationModule();
     settingsMod = new SettingsModule();
+    recordedLivesMod = new RecordedLivesModule();
     audioMgr = new AudioManager();
     timerInterval = null;
-    editingReplyId = null;
+    elapsedSeconds = 0;
     async mount() {
       Logger.info(MODULE$8, `Montando ${APP_NAME}...`);
       const targetParent = document.body || document.documentElement;
@@ -2643,9 +2777,9 @@
       this.host.style.cssText = "all:initial;position:fixed;z-index:2147483647;top:0;left:0;";
       targetParent.appendChild(this.host);
       this.shadow = this.host.attachShadow({ mode: "open" });
-      const style = document.createElement("style");
-      style.textContent = panelCss;
-      this.shadow.appendChild(style);
+      const styleEl = document.createElement("style");
+      styleEl.textContent = panelCss;
+      this.shadow.appendChild(styleEl);
       const panelState = await StorageManager.getPanelState();
       this.panelEl = document.createElement("div");
       this.panelEl.className = "als-panel";
@@ -2675,6 +2809,15 @@
       this.host.remove();
       EventBus.clear();
     }
+    toggleVisibility() {
+      if (this.visibilityMgr.isVisible()) {
+        this.visibilityMgr.close();
+        return false;
+      } else {
+        this.visibilityMgr.show();
+        return true;
+      }
+    }
     _initializeComponents() {
       const headerContainer = this.shadow.querySelector("#als-header-container");
       this.positionMgr = new PanelPositionManager(this.panelEl);
@@ -2700,21 +2843,29 @@
       <!-- HEADER COMPONENT CONTAINER -->
       <div class="als-header" id="als-header-container"></div>
 
-      <!-- TABS NAVIGATION -->
+      <!-- TABS NAVIGATION (6 ABAS) -->
       <nav class="als-tab-nav">
-        <button class="als-tab-btn active" data-tab="painel">
+        <button class="als-tab-btn active" data-tab="painel" title="Painel Geral">
           <span class="als-tab-icon">📊</span>
           <span class="als-tab-label">PAINEL</span>
         </button>
-        <button class="als-tab-btn" data-tab="automacao">
-          <span class="als-tab-icon">⚡</span>
-          <span class="als-tab-label">AUTOMAÇÃO</span>
-        </button>
-        <button class="als-tab-btn" data-tab="produtos">
+        <button class="als-tab-btn" data-tab="produtos" title="Catálogo de Produtos">
           <span class="als-tab-icon">📦</span>
           <span class="als-tab-label">PRODUTOS</span>
         </button>
-        <button class="als-tab-btn" data-tab="ajustes">
+        <button class="als-tab-btn" data-tab="automacao" title="Automação e Chat">
+          <span class="als-tab-icon">⚡</span>
+          <span class="als-tab-label">AUTOMAÇÃO</span>
+        </button>
+        <button class="als-tab-btn" data-tab="vendas" title="Feed de Vendas">
+          <span class="als-tab-icon">🛒</span>
+          <span class="als-tab-label">VENDAS</span>
+        </button>
+        <button class="als-tab-btn" data-tab="gravadas" title="Lives Anteriores">
+          <span class="als-tab-icon">📼</span>
+          <span class="als-tab-label">GRAVADAS</span>
+        </button>
+        <button class="als-tab-btn" data-tab="ajustes" title="Configurações">
           <span class="als-tab-icon">⚙️</span>
           <span class="als-tab-label">AJUSTES</span>
         </button>
@@ -2723,7 +2874,7 @@
       <!-- CONTENT CONTAINER -->
       <div class="als-content">
 
-        <!-- ─── ABA PAINEL ─── -->
+        <!-- ─── ABA 1: PAINEL ─── -->
         <div class="als-pane active" id="als-pane-painel">
 
           <!-- Card de Faturamento e Timer -->
@@ -2731,28 +2882,28 @@
             <div class="als-gmv-hero">
               <div class="als-gmv-label">FATURAMENTO DA LIVE</div>
               <div class="als-gmv-value" id="als-gmv-value">R$ 0,00</div>
-              <div class="als-gmv-sub" id="als-gmv-sub">Aguardando métricas do TikTok Shop...</div>
+              <div class="als-gmv-sub" id="als-gmv-sub">Aguardando dados da LIVE...</div>
             </div>
 
             <div class="als-section-label mt8">TEMPO EM TRANSMISSÃO</div>
             <div class="flex-row mt4" style="justify-content:center;gap:2px;">
               <div style="text-align:center">
-                <div style="font-size:24px;font-weight:900;color:#22c55e;font-variant-numeric:tabular-nums" id="als-timer-h">00</div>
+                <div style="font-size:22px;font-weight:900;color:#22c55e;font-variant-numeric:tabular-nums" id="als-timer-h">00</div>
                 <div style="font-size:8px;color:#64748b;font-weight:700">H</div>
               </div>
-              <div style="font-size:20px;font-weight:900;color:#2a3f5c;margin-bottom:8px">:</div>
+              <div style="font-size:18px;font-weight:900;color:#2a3f5c;margin-bottom:6px">:</div>
               <div style="text-align:center">
-                <div style="font-size:24px;font-weight:900;color:#22c55e;font-variant-numeric:tabular-nums" id="als-timer-m">00</div>
+                <div style="font-size:22px;font-weight:900;color:#22c55e;font-variant-numeric:tabular-nums" id="als-timer-m">00</div>
                 <div style="font-size:8px;color:#64748b;font-weight:700">MIN</div>
               </div>
-              <div style="font-size:20px;font-weight:900;color:#2a3f5c;margin-bottom:8px">:</div>
+              <div style="font-size:18px;font-weight:900;color:#2a3f5c;margin-bottom:6px">:</div>
               <div style="text-align:center">
-                <div style="font-size:24px;font-weight:900;color:#22c55e;font-variant-numeric:tabular-nums" id="als-timer-s">00</div>
+                <div style="font-size:22px;font-weight:900;color:#22c55e;font-variant-numeric:tabular-nums" id="als-timer-s">00</div>
                 <div style="font-size:8px;color:#64748b;font-weight:700">SEG</div>
               </div>
             </div>
             <div class="flex-row mt6" style="justify-content:center">
-              <button class="als-btn als-btn-green als-btn-xs" id="als-btn-start-live">▶ Iniciar</button>
+              <button class="als-btn als-btn-green als-btn-xs" id="als-btn-start-live">▶ Iniciar Sessão</button>
               <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-stop-live">■ Parar</button>
             </div>
           </div>
@@ -2760,7 +2911,7 @@
           <!-- Meta de GMV -->
           <div class="als-card" id="als-goal-card">
             <div class="flex-between mb4">
-              <div class="als-card-title">🎯 Meta de GMV</div>
+              <div class="als-card-title">🎯 Meta de Faturamento</div>
               <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-edit-goal">Editar</button>
             </div>
             <div id="als-goal-content">
@@ -2771,8 +2922,8 @@
             </div>
           </div>
 
-          <!-- Grid de Métricas -->
-          <div class="als-section-label">MÉTRICAS DA SESSÃO</div>
+          <!-- Grid de Métricas 2x2 -->
+          <div class="als-section-label">INDICADORES EM TEMPO REAL</div>
           <div class="als-metrics-grid">
             <div class="als-metric">
               <div class="als-metric-label">VENDAS</div>
@@ -2787,7 +2938,7 @@
             <div class="als-metric">
               <div class="als-metric-label">VENDAS/H</div>
               <div class="als-metric-value" id="als-metric-sph">0.0</div>
-              <div class="als-metric-sub">por hora</div>
+              <div class="als-metric-sub">velocidade</div>
             </div>
             <div class="als-metric">
               <div class="als-metric-label">ESPECTADORES</div>
@@ -2796,57 +2947,102 @@
             </div>
           </div>
 
-          <!-- Feed de Vendas Recentes -->
-          <div class="als-card">
+          <!-- Destaque de Produto Fixado -->
+          <div class="als-card" id="als-main-pinned-card" style="display:none">
             <div class="flex-between mb4">
-              <div class="als-card-title">🛍 Vendas Recentes</div>
-              <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-clear-sales">Limpar</button>
+              <div class="als-card-title text-green">📌 Produto Fixado na LIVE</div>
+              <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-main-unpin">Desafixar</button>
             </div>
-            <div class="als-sales-feed" id="als-sales-feed">
-              <div class="als-empty-state">
-                <div class="als-empty-icon">🛒</div>
-                <div>Aguardando vendas do TikTok...</div>
-              </div>
-            </div>
+            <div id="als-main-pinned-info"></div>
           </div>
 
         </div>
 
-        <!-- ─── ABA AUTOMAÇÃO ─── -->
+        <!-- ─── ABA 2: PRODUTOS ─── -->
+        <div class="als-pane" id="als-pane-produtos">
+          <div class="als-card">
+            <div class="flex-between mb6">
+              <div>
+                <div class="als-card-title">📦 Vitrine da LIVE</div>
+                <div class="text-muted" id="als-product-count-label">0 produtos detectados</div>
+              </div>
+              <button class="als-btn als-btn-green als-btn-xs" id="als-btn-refresh-products">🔄 Atualizar</button>
+            </div>
+            <div id="als-product-list-wrap">
+              <div class="als-empty-state">
+                <div class="als-empty-icon">📦</div>
+                <div>Nenhum produto sincronizado</div>
+                <div class="text-muted">Clique em Atualizar para ler a vitrine da LIVE</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fixação Manual Direta -->
+          <div class="als-card">
+            <div class="als-card-title mb4">📌 Fixação Rápida</div>
+            <div class="als-form-group">
+              <div class="als-select-wrap">
+                <select class="als-select" id="als-manual-pin-select">
+                  <option value="">Selecione o produto...</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex-row mt6">
+              <button class="als-btn als-btn-green als-btn-sm" style="flex:1" id="als-btn-pin-now">📌 Fixar Agora</button>
+              <button class="als-btn als-btn-ghost als-btn-sm" id="als-btn-unpin">Desafixar</button>
+            </div>
+            <div class="text-muted mt4" id="als-pin-status"></div>
+          </div>
+        </div>
+
+        <!-- ─── ABA 3: AUTOMAÇÃO ─── -->
         <div class="als-pane" id="als-pane-automacao">
 
-          <!-- Fixação Automática -->
+          <!-- Auto-Pin / Renovação Automática -->
           <div class="als-card">
             <div class="als-card-header">
               <div>
-                <div class="als-card-title">📌 Fixação Automática</div>
-                <div class="als-card-desc">Mantém o produto selecionado fixado no topo da transmissão.</div>
+                <div class="als-card-title">⚡ Autofixar Produto</div>
+                <div class="als-card-desc">Refixa o produto automaticamente para mantê-lo no topo.</div>
               </div>
               <label class="als-toggle">
                 <input type="checkbox" id="als-toggle-auto-pin" />
                 <span class="als-toggle-slider"></span>
               </label>
             </div>
+
             <div class="als-collapsible" id="als-auto-pin-form">
               <div class="als-form-group mt6">
-                <label class="als-form-label">Produto para fixar</label>
+                <label class="als-form-label">Produto para fixação contínua</label>
                 <div class="als-select-wrap">
                   <select class="als-select" id="als-pin-product-select">
                     <option value="">Selecione um produto...</option>
                   </select>
                 </div>
               </div>
+
               <div class="als-form-group">
-                <label class="als-form-label">Renovar a cada</label>
+                <label class="als-form-label">Intervalo de renovação</label>
                 <div class="als-input-row">
                   <input type="number" class="als-num-input" id="als-repin-interval" min="10" max="300" value="30" />
                   <span class="als-input-label">segundos</span>
                 </div>
               </div>
+
+              <div class="als-card-sub mt6" id="als-auto-pin-status-box">
+                <div class="flex-between">
+                  <span class="text-muted">Status:</span>
+                  <strong id="als-auto-status-label" class="text-green">Aguardando ativação</strong>
+                </div>
+                <div class="flex-between mt2">
+                  <span class="text-muted">Próxima execução:</span>
+                  <span id="als-auto-countdown-label">—</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Mensagens Automáticas -->
+          <!-- Mensagens Automáticas no Chat -->
           <div class="als-card">
             <div class="als-card-header">
               <div>
@@ -2871,19 +3067,19 @@
                 <input type="range" class="als-range mt4" id="als-msg-max-slider" min="10" max="600" value="180" step="5" />
               </div>
               <div class="als-input-row mt6">
-                <input type="text" class="als-input" id="als-chat-msg-input" placeholder="Digite uma mensagem para o chat…" maxlength="150" style="flex:1" />
+                <input type="text" class="als-input" id="als-chat-msg-input" placeholder="Mensagem para o chat…" maxlength="150" style="flex:1" />
                 <button class="als-btn als-btn-green als-btn-xs" id="als-btn-save-msg">+</button>
               </div>
               <div class="als-msg-list mt6" id="als-msg-list"></div>
             </div>
           </div>
 
-          <!-- Respostas Automáticas -->
+          <!-- Respostas Automáticas por Gatilhos -->
           <div class="als-card">
             <div class="als-card-header">
               <div>
                 <div class="als-card-title">🤖 Respostas Automáticas</div>
-                <div class="als-card-desc">Responde perguntas do chat por palavras-chave.</div>
+                <div class="als-card-desc">Responde dúvidas frequentes no chat por palavras-chave.</div>
               </div>
               <label class="als-toggle">
                 <input type="checkbox" id="als-toggle-auto-reply" />
@@ -2891,16 +3087,6 @@
               </label>
             </div>
             <div class="als-collapsible" id="als-auto-reply-form">
-              <div class="als-toggle-row mt4">
-                <div>
-                  <div class="als-toggle-row-label">Chamar pelo nome</div>
-                  <div class="als-toggle-row-desc">Menciona o usuário que fez a pergunta</div>
-                </div>
-                <label class="als-toggle als-toggle-sm">
-                  <input type="checkbox" id="als-toggle-reply-name" checked />
-                  <span class="als-toggle-slider"></span>
-                </label>
-              </div>
               <button class="als-btn als-btn-green als-btn-sm w-full mt6" id="als-btn-new-reply">+ Nova Regra</button>
               <div id="als-reply-form-wrap" style="display:none" class="als-card-sub">
                 <div class="als-form-group">
@@ -2910,7 +3096,7 @@
                 </div>
                 <div class="als-form-group">
                   <label class="als-form-label">Resposta</label>
-                  <textarea class="als-textarea" id="als-reply-text" placeholder="ex: Sim! Temos todos os tamanhos disponíveis na sacola."></textarea>
+                  <textarea class="als-textarea" id="als-reply-text" placeholder="ex: Sim! Temos todos os tamanhos na sacola."></textarea>
                 </div>
                 <div class="flex-row mt6" style="justify-content:flex-end">
                   <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-cancel-reply">Cancelar</button>
@@ -2923,49 +3109,44 @@
 
         </div>
 
-        <!-- ─── ABA PRODUTOS ─── -->
-        <div class="als-pane" id="als-pane-produtos">
-
+        <!-- ─── ABA 4: VENDAS ─── -->
+        <div class="als-pane" id="als-pane-vendas">
           <div class="als-card">
-            <div class="flex-between mb6">
-              <div class="als-card-title">📦 Catálogo da LIVE</div>
-              <button class="als-btn als-btn-green als-btn-xs" id="als-btn-refresh-products">🔄 Atualizar</button>
+            <div class="flex-between mb4">
+              <div>
+                <div class="als-card-title">🛍 Vendas em Tempo Real</div>
+                <div class="text-muted" id="als-vendas-summary">Acompanhamento contínuo da LIVE</div>
+              </div>
+              <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-clear-sales">Limpar</button>
             </div>
-            <div id="als-product-list-wrap">
+            <div class="als-sales-feed" id="als-sales-feed">
               <div class="als-empty-state">
-                <div class="als-empty-icon">📦</div>
-                <div>Nenhum produto sincronizado</div>
-                <div class="text-muted">Clique em Atualizar para ler os produtos da LIVE</div>
+                <div class="als-empty-icon">🛒</div>
+                <div>Aguardando vendas do TikTok...</div>
               </div>
             </div>
           </div>
-
-          <!-- Fixação Manual -->
-          <div class="als-card">
-            <div class="als-card-title mb4">📌 Fixação Manual</div>
-            <div class="als-form-group">
-              <div class="als-select-wrap">
-                <select class="als-select" id="als-manual-pin-select">
-                  <option value="">Selecione o produto...</option>
-                </select>
-              </div>
-            </div>
-            <div class="flex-row mt6">
-              <button class="als-btn als-btn-green als-btn-sm" style="flex:1" id="als-btn-pin-now">📌 Fixar Agora</button>
-              <button class="als-btn als-btn-ghost als-btn-sm" id="als-btn-unpin">Desafixar</button>
-            </div>
-            <div class="text-muted mt4" id="als-pin-status"></div>
-          </div>
-
-          <!-- Produto Fixado Atual -->
-          <div class="als-card" id="als-pinned-card" style="display:none">
-            <div class="als-card-title mb4 text-green">✅ Produto Fixado na LIVE</div>
-            <div id="als-pinned-info"></div>
-          </div>
-
         </div>
 
-        <!-- ─── ABA AJUSTES ─── -->
+        <!-- ─── ABA 5: LIVES GRAVADAS ─── -->
+        <div class="als-pane" id="als-pane-gravadas">
+          <div class="als-card">
+            <div class="flex-between mb4">
+              <div class="als-card-title">📼 Histórico de Transmissões</div>
+              <button class="als-btn als-btn-green als-btn-xs" id="als-btn-load-recorded">🔄 Carregar</button>
+            </div>
+            <input type="text" class="als-input mt4 mb6" id="als-search-recorded" placeholder="Buscar por título ou data…" />
+            <div id="als-recorded-lives-list">
+              <div class="als-empty-state">
+                <div class="als-empty-icon">📼</div>
+                <div>Nenhuma gravação carregada</div>
+                <div class="text-muted">Clique em Carregar para buscar as transmissões anteriores</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── ABA 6: AJUSTES & DEBUG ─── -->
         <div class="als-pane" id="als-pane-ajustes">
 
           <!-- Licença -->
@@ -2983,12 +3164,12 @@
             </div>
           </div>
 
-          <!-- Som de Venda -->
+          <!-- Alerta Sonoro -->
           <div class="als-card">
             <div class="als-toggle-row">
               <div>
                 <div class="als-toggle-row-label">🔊 Alerta Sonoro de Venda</div>
-                <div class="als-toggle-row-desc">Toca som a cada venda identificada</div>
+                <div class="als-toggle-row-desc">Toca som a cada venda confirmada</div>
               </div>
               <label class="als-toggle">
                 <input type="checkbox" id="als-toggle-sound" />
@@ -3007,6 +3188,19 @@
             <div class="flex-row">
               <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-reset-pos">Restaurar Posição</button>
               <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-reset-size">Restaurar Tamanho</button>
+            </div>
+          </div>
+
+          <!-- Painel de Diagnóstico / Modo Debug -->
+          <div class="als-card">
+            <div class="als-card-title mb4 text-teal">🛠 Painel de Diagnóstico (Debug)</div>
+            <div class="als-card-sub" style="font-size:11px;font-family:monospace;line-height:1.6">
+              <div>URL: <span id="als-dbg-url" class="text-green">—</span></div>
+              <div>Status LIVE: <span id="als-dbg-status" class="text-teal">—</span></div>
+              <div>Produtos em Memória: <span id="als-dbg-prod-count">0</span></div>
+              <div>Produto Fixado: <span id="als-dbg-pinned">—</span></div>
+              <div>Fonte das Métricas: <span id="als-dbg-source">—</span></div>
+              <div>Automação Ativa: <span id="als-dbg-auto">Não</span></div>
             </div>
           </div>
 
@@ -3033,90 +3227,109 @@
       $("als-btn-clear-sales")?.addEventListener("click", () => {
         this.dashboardMod.clearFeed();
         const feed = $("als-sales-feed");
-        feed.innerHTML = `<div class="als-empty-state"><div class="als-empty-icon">🛒</div><div>Aguardando vendas do TikTok...</div></div>`;
+        if (feed) {
+          feed.innerHTML = `<div class="als-empty-state"><div class="als-empty-icon">🛒</div><div>Aguardando vendas do TikTok...</div></div>`;
+        }
       });
       $("als-btn-set-goal")?.addEventListener("click", () => this._promptGoal());
       $("als-btn-edit-goal")?.addEventListener("click", () => this._promptGoal());
-      $("als-toggle-auto-pin")?.addEventListener("change", async (e) => {
-        const on = e.target.checked;
-        this._toggleCollapsible("als-auto-pin-form", on);
-        if (on) {
-          const select = $("als-pin-product-select");
-          const intervalInput = $("als-repin-interval");
-          const interval = parseInt(intervalInput.value || "30", 10);
-          if (select.value) {
-            this.automationMod.startAutoPin(select.value, interval);
-          } else {
-            EventBus.emit("toast:show", { message: "⚠ Selecione um produto na lista", type: "warn" });
+      $("als-toggle-auto-pin")?.addEventListener("change", (e) => {
+        const checked = e.target.checked;
+        const select = $("als-pin-product-select");
+        const intervalInput = $("als-repin-interval");
+        if (checked) {
+          const prodId = select?.value;
+          const interval = parseInt(intervalInput?.value || "30", 10);
+          if (!prodId) {
             e.target.checked = false;
-            this._toggleCollapsible("als-auto-pin-form", false);
+            EventBus.emit("toast:show", { message: "Selecione um produto na lista", type: "warn" });
+            return;
           }
+          this.automationMod.startAutoPin(prodId, interval);
+          this._toggleCollapsible("als-auto-pin-form", true);
         } else {
           this.automationMod.stopAutoPin();
+          this._toggleCollapsible("als-auto-pin-form", false);
         }
       });
       $("als-toggle-auto-msg")?.addEventListener("change", (e) => {
-        this._toggleCollapsible("als-auto-msg-form", e.target.checked);
-      });
-      $("als-btn-save-msg")?.addEventListener("click", async () => {
-        const input = $("als-chat-msg-input");
-        const text = input.value.trim();
-        if (!text) return;
-        const messages = await this.automationMod.addChatMessage(text);
-        input.value = "";
-        this._renderMessages(messages);
+        const checked = e.target.checked;
+        this._toggleCollapsible("als-auto-msg-form", checked);
       });
       $("als-toggle-auto-reply")?.addEventListener("change", (e) => {
-        this._toggleCollapsible("als-auto-reply-form", e.target.checked);
+        const checked = e.target.checked;
+        this._toggleCollapsible("als-auto-reply-form", checked);
+      });
+      $("als-msg-min-slider")?.addEventListener("input", () => this._updateMsgIntervalLabel());
+      $("als-msg-max-slider")?.addEventListener("input", () => this._updateMsgIntervalLabel());
+      $("als-btn-save-msg")?.addEventListener("click", () => {
+        const input = $("als-chat-msg-input");
+        const text = input?.value.trim();
+        if (!text) return;
+        this.automationMod.addChatMessage(text);
+        input.value = "";
+        this._renderMessages(StateManager.settings.chatMessages);
       });
       $("als-btn-new-reply")?.addEventListener("click", () => {
-        $("als-reply-form-wrap").style.display = "block";
+        const form = $("als-reply-form-wrap");
+        if (form) form.style.display = "block";
       });
       $("als-btn-cancel-reply")?.addEventListener("click", () => {
-        $("als-reply-form-wrap").style.display = "none";
-        this.editingReplyId = null;
+        const form = $("als-reply-form-wrap");
+        if (form) form.style.display = "none";
       });
-      $("als-btn-save-reply")?.addEventListener("click", async () => {
+      $("als-btn-save-reply")?.addEventListener("click", () => {
         const triggersInput = $("als-reply-triggers");
         const textInput = $("als-reply-text");
-        const triggers = triggersInput.value.split(",").map((t) => t.trim()).filter(Boolean);
-        const text = textInput.value.trim();
-        if (!triggers.length || !text) {
-          EventBus.emit("toast:show", { message: "⚠ Preencha gatilhos e resposta", type: "warn" });
+        const triggers = triggersInput?.value.split(",").map((t) => t.trim()).filter(Boolean);
+        const text = textInput?.value.trim();
+        if (!triggers?.length || !text) {
+          EventBus.emit("toast:show", { message: "Preencha gatilhos e resposta", type: "warn" });
           return;
         }
-        const replies = await this.automationMod.saveAutoResponse({
-          id: this.editingReplyId || Date.now(),
-          triggers,
-          text,
-          scope: "all",
-          active: true
-        });
+        this.automationMod.addAutoResponse(triggers, text);
         triggersInput.value = "";
         textInput.value = "";
-        $("als-reply-form-wrap").style.display = "none";
-        this.editingReplyId = null;
-        this._renderReplies(replies);
+        const form = $("als-reply-form-wrap");
+        if (form) form.style.display = "none";
+        this._renderReplies(StateManager.settings.autoResponses);
       });
       $("als-btn-refresh-products")?.addEventListener("click", async () => {
-        const res = await this.productsMod.refreshCatalog();
-        if (!res.success) {
-          EventBus.emit("toast:show", { message: `⚠ ${res.error}`, type: "warn" });
-        }
+        EventBus.emit("toast:show", { message: "🔄 Sincronizando catálogo com a LIVE...", type: "info" });
+        await this.productsMod.refreshProducts();
       });
       $("als-btn-pin-now")?.addEventListener("click", async () => {
         const select = $("als-manual-pin-select");
-        if (!select.value) {
-          EventBus.emit("toast:show", { message: "⚠ Selecione um produto", type: "warn" });
+        const prodId = select?.value;
+        if (!prodId) {
+          EventBus.emit("toast:show", { message: "Selecione um produto para fixar", type: "warn" });
           return;
         }
-        $("als-pin-status").textContent = "Fixando produto...";
-        const res = await this.productsMod.pin(select.value);
-        $("als-pin-status").textContent = res.success ? "✅ Fixado com sucesso" : `⚠ ${res.error || "Falha ao fixar"}`;
+        const res = await this.productsMod.pin(prodId);
+        const statusEl = $("als-pin-status");
+        if (statusEl) {
+          statusEl.textContent = res.success ? "Produto fixado na LIVE" : `⚠ ${res.error}`;
+        }
       });
       $("als-btn-unpin")?.addEventListener("click", async () => {
         const res = await this.productsMod.unpin();
-        $("als-pin-status").textContent = res.success ? "Produto desafixado" : `⚠ ${res.error}`;
+        const statusEl = $("als-pin-status");
+        if (statusEl) {
+          statusEl.textContent = res.success ? "Produto desafixado" : `⚠ ${res.error}`;
+        }
+      });
+      $("als-btn-main-unpin")?.addEventListener("click", async () => {
+        await this.productsMod.unpin();
+      });
+      $("als-btn-load-recorded")?.addEventListener("click", async () => {
+        EventBus.emit("toast:show", { message: "📼 Buscando gravações anteriores...", type: "info" });
+        const lives = await this.recordedLivesMod.loadRecordedLives();
+        this._renderRecordedLives(lives);
+      });
+      $("als-search-recorded")?.addEventListener("input", (e) => {
+        const q = e.target.value;
+        const filtered = this.recordedLivesMod.filterLives(q);
+        this._renderRecordedLives(filtered);
       });
       $("als-toggle-sound")?.addEventListener("change", (e) => {
         const on = e.target.checked;
@@ -3125,17 +3338,19 @@
       });
       $("als-btn-unlock-audio")?.addEventListener("click", async () => {
         await this.audioMgr.unlock();
-        EventBus.emit("toast:show", { message: "🔊 Áudio desbloqueado", type: "success" });
+        EventBus.emit("toast:show", { message: "🔊 Áudio desbloqueado com sucesso", type: "success" });
       });
       $("als-btn-test-sound")?.addEventListener("click", () => this.audioMgr.playSaleSound());
       $("als-btn-reset-pos")?.addEventListener("click", () => this.positionMgr.resetPosition());
       $("als-btn-reset-size")?.addEventListener("click", () => this.positionMgr.resetSize());
       $("als-btn-activate-license")?.addEventListener("click", async () => {
-        const key = $("als-license-key").value.trim();
+        const key = $("als-license-key")?.value.trim() || "";
         const res = await this.settingsMod.activateLicense(key);
         const badge = $("als-license-badge");
-        badge.className = `als-badge als-badge-${res.status.toLowerCase()}`;
-        badge.textContent = res.status;
+        if (badge) {
+          badge.className = `als-badge als-badge-${res.status.toLowerCase()}`;
+          badge.textContent = res.status;
+        }
         EventBus.emit("toast:show", {
           message: res.message,
           type: res.valid ? "success" : "warn"
@@ -3143,22 +3358,61 @@
       });
       $("als-btn-eye")?.addEventListener("click", () => {
         const input = $("als-license-key");
-        input.type = input.type === "password" ? "text" : "password";
+        if (input) {
+          input.type = input.type === "password" ? "text" : "password";
+        }
       });
     }
     _subscribeEvents() {
-      EventBus.on("metrics:updated", (metrics) => this._renderMetrics(metrics));
+      EventBus.on("metrics:updated", (metrics) => {
+        this._renderMetrics(metrics);
+        this._updateDebugView();
+      });
       EventBus.on("sale:detected", (sale) => this._addSaleToFeed(sale));
-      EventBus.on("products:loaded", (products) => this._renderProductList(products));
-      EventBus.on("products:updated", (products) => this._renderProductList(products));
-      EventBus.on("products:pinned", ({ productId }) => this._updatePinnedDisplay(productId));
+      EventBus.on("products:loaded", (products) => {
+        this._renderProductList(products);
+        this._updateDebugView();
+      });
+      EventBus.on("products:updated", (products) => {
+        this._renderProductList(products);
+        this._updateDebugView();
+      });
+      EventBus.on("products:pinned", ({ productId }) => {
+        this._updatePinnedDisplay(productId);
+        this._updateDebugView();
+      });
       EventBus.on("products:unpinned", () => {
-        this.shadow.getElementById("als-pinned-card").style.display = "none";
+        const card = this.shadow.getElementById("als-main-pinned-card");
+        if (card) card.style.display = "none";
+        this._updateDebugView();
+      });
+      EventBus.on("automation:started", () => {
+        const label = this.shadow.getElementById("als-auto-status-label");
+        if (label) {
+          label.textContent = "Ativo (executando)";
+          label.className = "text-green";
+        }
+        this._updateDebugView();
       });
       EventBus.on("automation:stopped", () => {
         const toggle = this.shadow.getElementById("als-toggle-auto-pin");
         if (toggle) toggle.checked = false;
         this._toggleCollapsible("als-auto-pin-form", false);
+        const label = this.shadow.getElementById("als-auto-status-label");
+        if (label) {
+          label.textContent = "Parado";
+          label.className = "text-muted";
+        }
+        this._updateDebugView();
+      });
+      EventBus.on("automation:tick", ({ nextSecs }) => {
+        const cd = this.shadow.getElementById("als-auto-countdown-label");
+        if (cd) {
+          cd.textContent = `${nextSecs}s`;
+        }
+      });
+      EventBus.on("recorded_lives:loaded", (lives) => {
+        this._renderRecordedLives(lives);
       });
     }
     _renderMetrics(metrics) {
@@ -3167,7 +3421,7 @@
       if (gmvEl) gmvEl.textContent = formatCurrency(metrics.gmv);
       const subEl = $("als-gmv-sub");
       if (subEl) {
-        subEl.textContent = metrics.source === "tiktok" ? `Atualizado: ${new Date(metrics.updatedAt).toLocaleTimeString("pt-BR")}` : "Calculado localmente";
+        subEl.textContent = metrics.source === "DOM" || metrics.source === "tiktok" ? `Atualizado: ${new Date(metrics.updatedAt).toLocaleTimeString("pt-BR")}` : "Calculado a partir das vendas";
       }
       const salesEl = $("als-metric-sales");
       if (salesEl) salesEl.textContent = String(metrics.salesCount);
@@ -3181,6 +3435,7 @@
     }
     _addSaleToFeed(sale) {
       const feed = this.shadow.getElementById("als-sales-feed");
+      if (!feed) return;
       const empty = feed.querySelector(".als-empty-state");
       if (empty) empty.remove();
       const item = document.createElement("div");
@@ -3188,7 +3443,7 @@
       item.innerHTML = `
       <div>
         <div class="als-sale-name">🛍 ${escHtml(sale.productName || "Produto")}</div>
-        <div class="als-sale-meta">${formatRelativeTime(sale.timestamp)}</div>
+        <div class="als-sale-meta">${formatRelativeTime(sale.timestamp)} · ${escHtml(sale.source || "DOM")}</div>
       </div>
       <div class="als-sale-amount">${sale.amount ? formatCurrency(sale.amount) : "—"}</div>
     `;
@@ -3199,10 +3454,15 @@
     }
     _renderProductList(products) {
       const wrap = this.shadow.getElementById("als-product-list-wrap");
+      const countLabel = this.shadow.getElementById("als-product-count-label");
       const manualSelect = this.shadow.getElementById("als-manual-pin-select");
       const autoPinSelect = this.shadow.getElementById("als-pin-product-select");
+      if (countLabel) {
+        countLabel.textContent = `${products.length} produtos sincronizados`;
+      }
+      if (!wrap) return;
       if (!products.length) {
-        wrap.innerHTML = `<div class="als-empty-state"><div class="als-empty-icon">📦</div><div>Nenhum produto encontrado</div></div>`;
+        wrap.innerHTML = `<div class="als-empty-state"><div class="als-empty-icon">📦</div><div>Nenhum produto encontrado</div><div class="text-muted">Aguardando carregamento da vitrine...</div></div>`;
         return;
       }
       const list = document.createElement("div");
@@ -3231,24 +3491,68 @@
       wrap.innerHTML = "";
       wrap.appendChild(list);
       const optionsHtml = '<option value="">Selecione o produto...</option>' + products.map((p) => `<option value="${p.id}">${escHtml(p.name)}</option>`).join("");
-      manualSelect.innerHTML = optionsHtml;
-      autoPinSelect.innerHTML = optionsHtml;
+      if (manualSelect) manualSelect.innerHTML = optionsHtml;
+      if (autoPinSelect) autoPinSelect.innerHTML = optionsHtml;
     }
     _updatePinnedDisplay(productId) {
-      const card = this.shadow.getElementById("als-pinned-card");
-      const info = this.shadow.getElementById("als-pinned-info");
+      const card = this.shadow.getElementById("als-main-pinned-card");
+      const info = this.shadow.getElementById("als-main-pinned-info");
       const product = StateManager.products.find((p) => p.id === productId);
-      if (product) {
+      if (card && info && product) {
         card.style.display = "block";
         info.innerHTML = `
         <div class="als-product-name">${escHtml(product.name)}</div>
-        ${product.price ? `<div class="als-product-price">${formatCurrency(product.price)}</div>` : ""}
+        ${product.price ? `<div class="als-product-price text-green bold">${formatCurrency(product.price)}</div>` : ""}
       `;
       }
     }
+    _renderRecordedLives(lives) {
+      const container = this.shadow.getElementById("als-recorded-lives-list");
+      if (!container) return;
+      if (!lives || lives.length === 0) {
+        container.innerHTML = `
+        <div class="als-empty-state">
+          <div class="als-empty-icon">📼</div>
+          <div>Nenhuma transmissão encontrada</div>
+        </div>
+      `;
+        return;
+      }
+      container.innerHTML = "";
+      lives.forEach((live) => {
+        const card = document.createElement("div");
+        card.className = "als-card-sub mb4";
+        card.innerHTML = `
+        <div class="flex-between">
+          <strong class="text-green">${escHtml(live.title)}</strong>
+          <span class="als-badge als-badge-free">${new Date(live.startedAt).toLocaleDateString("pt-BR")}</span>
+        </div>
+        <div class="flex-between mt4 text-muted">
+          <span>GMV: <strong class="text-1">${live.gmv ? formatCurrency(live.gmv) : "—"}</strong></span>
+          <span>Pedidos: <strong class="text-1">${live.ordersCount ?? "—"}</strong></span>
+        </div>
+      `;
+        container.appendChild(card);
+      });
+    }
+    _updateDebugView() {
+      const $ = (id) => this.shadow.getElementById(id);
+      const urlEl = $("als-dbg-url");
+      if (urlEl) urlEl.textContent = window.location.pathname;
+      const statusEl = $("als-dbg-status");
+      if (statusEl) statusEl.textContent = StateManager.live.status;
+      const countEl = $("als-dbg-prod-count");
+      if (countEl) countEl.textContent = String(StateManager.products.length);
+      const pinnedEl = $("als-dbg-pinned");
+      if (pinnedEl) pinnedEl.textContent = StateManager.live.pinnedProductId || "Nenhum";
+      const srcEl = $("als-dbg-source");
+      if (srcEl) srcEl.textContent = StateManager.metrics.source;
+      const autoEl = $("als-dbg-auto");
+      if (autoEl) autoEl.textContent = StateManager.live.automationEnabled ? "Sim (Ativo)" : "Não";
+    }
     async _promptGoal() {
       const current = StateManager.settings.gmvGoal;
-      const input = window.prompt("Definir Meta de GMV (R$):", current ? String(current) : "");
+      const input = window.prompt("Definir Meta de Faturamento (R$):", current ? String(current) : "");
       if (input === null) return;
       const amount = parseFloat(input.replace(/\./g, "").replace(",", "."));
       if (isNaN(amount) || amount <= 0) {
@@ -3261,6 +3565,7 @@
     _renderGoal() {
       const status = this.goalsMod.getGoalStatus();
       const content = this.shadow.getElementById("als-goal-content");
+      if (!content) return;
       if (!status.goal) {
         content.innerHTML = `
         <div class="als-empty-state" style="padding:6px 0">
@@ -3281,70 +3586,81 @@
           <div class="als-progress-fill" style="width: ${status.percentage}%"></div>
         </div>
         <div class="flex-between mt4">
-          <span class="text-muted">${status.percentage}% atingido</span>
-          <span class="text-muted">Faltam ${formatCurrency(status.remaining)}</span>
+          <span class="als-progress-pct">${status.percentage}% alcançado</span>
+          ${status.isReached ? '<span class="text-green bold">🎉 META BATIDA!</span>' : ""}
         </div>
       </div>
     `;
     }
     _renderMessages(messages) {
       const list = this.shadow.getElementById("als-msg-list");
-      list.innerHTML = "";
-      messages.forEach((m) => {
-        const div = document.createElement("div");
-        div.className = `als-msg-item ${m.active ? "active-item" : ""}`;
-        div.innerHTML = `
-        <span class="als-msg-text">${escHtml(m.text)}</span>
-        <div class="als-msg-actions">
-          <button class="als-icon-btn-xs danger" data-del-msg="${m.id}">🗑</button>
+      if (!list) return;
+      list.innerHTML = messages.length === 0 ? '<div class="text-muted" style="text-align:center;padding:8px">Nenhuma mensagem configurada</div>' : messages.map((m) => `
+        <div class="als-msg-item">
+          <span class="als-msg-text">${escHtml(m.text)}</span>
+          <button class="als-btn als-btn-ghost als-btn-xs" data-del-msg="${m.id}">✕</button>
         </div>
-      `;
-        div.querySelector("[data-del-msg]")?.addEventListener("click", async () => {
-          const updated = await this.automationMod.removeChatMessage(m.id);
-          this._renderMessages(updated);
+      `).join("");
+      list.querySelectorAll("[data-del-msg]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = parseInt(btn.dataset["delMsg"], 10);
+          this.automationMod.removeChatMessage(id);
+          this._renderMessages(StateManager.settings.chatMessages);
         });
-        list.appendChild(div);
       });
     }
     _renderReplies(replies) {
       const list = this.shadow.getElementById("als-reply-list");
-      list.innerHTML = "";
-      replies.forEach((r) => {
-        const div = document.createElement("div");
-        div.className = `als-msg-item ${r.active ? "active-item" : ""}`;
-        div.innerHTML = `
-        <div style="flex:1;min-width:0">
-          <div class="als-tags">${r.triggers.map((t) => `<span class="als-tag">${escHtml(t)}</span>`).join("")}</div>
-          <div class="als-msg-text mt4">"${escHtml(r.text)}"</div>
+      if (!list) return;
+      list.innerHTML = replies.length === 0 ? '<div class="text-muted" style="text-align:center;padding:8px">Nenhuma regra de resposta</div>' : replies.map((r) => `
+        <div class="als-msg-item">
+          <div style="flex:1">
+            <div class="als-badge als-badge-free mb2">${escHtml(r.triggers.join(", "))}</div>
+            <div class="als-msg-text">${escHtml(r.text)}</div>
+          </div>
+          <button class="als-btn als-btn-ghost als-btn-xs" data-del-reply="${r.id}">✕</button>
         </div>
-        <div class="als-msg-actions">
-          <button class="als-icon-btn-xs danger" data-del-reply="${r.id}">🗑</button>
-        </div>
-      `;
-        div.querySelector("[data-del-reply]")?.addEventListener("click", async () => {
-          const updated = await this.automationMod.removeAutoResponse(r.id);
-          this._renderReplies(updated);
+      `).join("");
+      list.querySelectorAll("[data-del-reply]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = parseInt(btn.dataset["delReply"], 10);
+          this.automationMod.removeAutoResponse(id);
+          this._renderReplies(StateManager.settings.autoResponses);
         });
-        list.appendChild(div);
       });
     }
+    _toggleCollapsible(id, open) {
+      const el = this.shadow.getElementById(id);
+      if (!el) return;
+      el.classList.toggle("open", open);
+    }
+    _updateMsgIntervalLabel() {
+      const minInput = this.shadow.getElementById("als-msg-min-slider");
+      const maxInput = this.shadow.getElementById("als-msg-max-slider");
+      const label = this.shadow.getElementById("als-msg-interval-label");
+      if (!minInput || !maxInput || !label) return;
+      let min = parseInt(minInput.value, 10);
+      let max = parseInt(maxInput.value, 10);
+      if (min > max) {
+        min = max;
+        minInput.value = String(min);
+      }
+      label.textContent = `${min}s – ${max}s`;
+      this.settingsMod.updateSettings({ autoMsgMin: min, autoMsgMax: max });
+    }
     _startTimer() {
-      if (this.timerInterval) return;
+      this._stopTimer();
       this.timerInterval = setInterval(() => {
-        const startedAt = StateManager.live.startedAt;
-        if (!startedAt) return;
-        const ms = Date.now() - startedAt;
-        const s = Math.floor(ms / 1e3);
-        const h = Math.floor(s / 3600);
-        const m = Math.floor(s % 3600 / 60);
-        const sec = s % 60;
-        const pad = (n) => String(n).padStart(2, "0");
+        this.elapsedSeconds++;
+        const h = Math.floor(this.elapsedSeconds / 3600);
+        const m = Math.floor(this.elapsedSeconds % 3600 / 60);
+        const s = this.elapsedSeconds % 60;
         const hEl = this.shadow.getElementById("als-timer-h");
         const mEl = this.shadow.getElementById("als-timer-m");
         const sEl = this.shadow.getElementById("als-timer-s");
-        if (hEl) hEl.textContent = pad(h);
-        if (mEl) mEl.textContent = pad(m);
-        if (sEl) sEl.textContent = pad(sec);
+        if (hEl) hEl.textContent = String(h).padStart(2, "0");
+        if (mEl) mEl.textContent = String(m).padStart(2, "0");
+        if (sEl) sEl.textContent = String(s).padStart(2, "0");
       }, 1e3);
     }
     _stopTimer() {
@@ -3352,9 +3668,6 @@
         clearInterval(this.timerInterval);
         this.timerInterval = null;
       }
-    }
-    _toggleCollapsible(id, open) {
-      this.shadow.getElementById(id)?.classList.toggle("open", open);
     }
     async _hydrate() {
       const settings = await StorageManager.getSettings();
@@ -3377,6 +3690,7 @@
         }
       }
       this._renderGoal();
+      this._updateDebugView();
     }
   }
   const MODULE$7 = "PanelInjector";
@@ -3410,6 +3724,22 @@
       }
       const root = document.getElementById(PANEL_ROOT_ID);
       root?.remove();
+    }
+    /**
+     * Retorna a instância ativa do painel.
+     */
+    getActivePanel() {
+      return this.activePanel;
+    }
+    /**
+     * Alterna a visibilidade do painel flutuante ativo.
+     */
+    toggleVisibility() {
+      if (!this.activePanel) {
+        this.inject();
+        return true;
+      }
+      return this.activePanel.toggleVisibility();
     }
     /**
      * Verifica se o elemento root já está anexado ao documento.
@@ -3509,10 +3839,54 @@
       }, 1e3);
     }
   }
+  class SalesDeduplicator {
+    recentHashes = /* @__PURE__ */ new Map();
+    ttlMs = 12e4;
+    // 2 minutos de proteção contra re-disparos
+    /**
+     * Gera um hash único e determinístico para a venda.
+     */
+    generateSaleHash(sale) {
+      if (sale.orderId) {
+        return `order_${sale.orderId}`;
+      }
+      const key = `${sale.productName || ""}_${sale.productId || ""}_${sale.amount || 0}_${Math.floor((sale.timestamp || Date.now()) / 15e3)}`;
+      return createUniqueHash(key);
+    }
+    /**
+     * Verifica se a venda é inédita ou duplicada.
+     */
+    isDuplicate(sale) {
+      this._cleanup();
+      const hash = sale.hash || this.generateSaleHash(sale);
+      if (this.recentHashes.has(hash)) {
+        return true;
+      }
+      this.recentHashes.set(hash, Date.now());
+      return false;
+    }
+    /**
+     * Remove hashes expirados do cache em memória.
+     */
+    _cleanup() {
+      const now = Date.now();
+      for (const [hash, timestamp] of this.recentHashes.entries()) {
+        if (now - timestamp > this.ttlMs) {
+          this.recentHashes.delete(hash);
+        }
+      }
+    }
+    /**
+     * Limpa todo o histórico de deduplicação.
+     */
+    clear() {
+      this.recentHashes.clear();
+    }
+  }
+  const salesDeduplicator = new SalesDeduplicator();
   const MODULE$4 = "SalesDetector";
   class SalesDetector {
     observer = null;
-    seenHashes = /* @__PURE__ */ new Set();
     isRunning = false;
     start() {
       if (this.isRunning) return;
@@ -3556,14 +3930,11 @@
       if (!isSaleNotification) return;
       const sale = this._extractSaleInfo(node);
       if (!sale) return;
-      const hash = createUniqueHash(sale.id);
-      if (this.seenHashes.has(hash)) return;
-      this.seenHashes.add(hash);
-      if (this.seenHashes.size > 500) {
-        const arr = Array.from(this.seenHashes);
-        this.seenHashes = new Set(arr.slice(arr.length - 250));
+      if (salesDeduplicator.isDuplicate(sale)) {
+        Logger.debug(MODULE$4, `Venda duplicada ignorada [${sale.id}]`);
+        return;
       }
-      Logger.info(MODULE$4, `🛍 Nova venda detectada: ${sale.productName || "Produto"} - R$ ${sale.amount ?? 0}`);
+      Logger.info(MODULE$4, `🛍 Nova venda real detectada: ${sale.productName || "Produto"} - R$ ${sale.amount ?? 0}`);
       StateManager.addSale(sale);
     }
     _extractSaleInfo(node) {
@@ -3576,14 +3947,15 @@
           '[class*="product-name"], [class*="product-title"], [class*="goods-name"]'
         );
         const productName = productNameEl?.textContent?.trim() || void 0;
-        const contentSignature = `${text.substring(0, 40)}_${Date.now()}`;
-        const id = createUniqueHash(contentSignature);
+        const rawId = salesDeduplicator.generateSaleHash({ productName, amount });
         return {
-          id,
+          id: rawId,
           productName,
           amount,
           quantity: 1,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          source: "DOM",
+          hash: rawId
         };
       } catch (err) {
         Logger.debug(MODULE$4, "Erro ao extrair informações de venda:", err);
@@ -3851,8 +4223,34 @@
       status: StateManager.live.status,
       isInjected: injector.isAlreadyInjected()
     }));
+    MessageBus.on("TOGGLE_PANEL", () => {
+      Logger.info(MODULE, "Comando TOGGLE_PANEL recebido");
+      const isVisible = injector.toggleVisibility();
+      return { ok: true, isVisible };
+    });
+    MessageBus.on("SHOW_PANEL", () => {
+      const panel = injector.getActivePanel();
+      if (panel) panel.visibilityMgr.show();
+      else injector.inject();
+      return { ok: true, isVisible: true };
+    });
+    MessageBus.on("HIDE_PANEL", () => {
+      const panel = injector.getActivePanel();
+      if (panel) panel.visibilityMgr.close();
+      return { ok: true, isVisible: false };
+    });
     MessageBus.on("ALS_GET_STATE", () => ({
       state: StateManager.getState()
+    }));
+    MessageBus.on("GET_DEBUG_STATE", () => ({
+      app: APP_NAME,
+      version: APP_VERSION,
+      url: window.location.href,
+      status: StateManager.live.status,
+      productsCount: StateManager.products.length,
+      pinnedProduct: StateManager.live.pinnedProductId,
+      metrics: StateManager.metrics,
+      automation: StateManager.settings.automation
     }));
     MessageBus.on("ALS_HEARTBEAT", () => {
       StateManager.heartbeat();

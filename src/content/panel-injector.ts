@@ -45,6 +45,24 @@ export class PanelInjector {
   }
 
   /**
+   * Retorna a instância ativa do painel.
+   */
+  getActivePanel(): FloatingPanel | null {
+    return this.activePanel;
+  }
+
+  /**
+   * Alterna a visibilidade do painel flutuante ativo.
+   */
+  toggleVisibility(): boolean {
+    if (!this.activePanel) {
+      this.inject();
+      return true;
+    }
+    return this.activePanel.toggleVisibility();
+  }
+
+  /**
    * Verifica se o elemento root já está anexado ao documento.
    */
   isAlreadyInjected(): boolean {
