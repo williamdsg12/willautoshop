@@ -1,31 +1,41 @@
 // ============================================================
-// Auto Live Shop V2 — TikTok Shop Adapter (façade)
-// Ponto único de acesso a todas as operações do TikTok Shop
+// Copilo Live Shop V2 — TikTok Shop Adapter (Fachada)
+// Ponto unificado e seguro de interação com o TikTok Shop
 // ============================================================
+
 import type { ActionResult, LiveProduct, LiveMetrics } from '@/shared/types';
 import { TikTokLiveAdapter } from './TikTokLiveAdapter';
 import { TikTokProductAdapter } from './TikTokProductAdapter';
+import { TikTokSelectors } from './TikTokSelectors';
+import { queryWithFallbacks, sleep } from '@/shared/utils';
 import { Logger } from '@/core/Logger';
 
 const MODULE = 'TikTokShopAdapter';
 
 export interface ITikTokShopAdapter {
+  live: TikTokLiveAdapter;
+  products: TikTokProductAdapter;
   isLiveActive(): boolean;
+  getLiveMetrics(): Partial<LiveMetrics>;
   getProducts(): LiveProduct[];
   getPinnedProduct(): LiveProduct | null;
   pinProduct(productId: string): Promise<ActionResult>;
   unpinProduct(): Promise<ActionResult>;
-  getLiveMetrics(): Partial<LiveMetrics>;
+  refreshProducts(): Promise<ActionResult<LiveProduct[]>>;
   sendChatMessage(text: string): Promise<ActionResult>;
   endLive(): Promise<ActionResult>;
 }
 
 export class TikTokShopAdapter implements ITikTokShopAdapter {
-  private live = new TikTokLiveAdapter();
-  private products = new TikTokProductAdapter();
+  public live = new TikTokLiveAdapter();
+  public products = new TikTokProductAdapter();
 
   isLiveActive(): boolean {
     return this.live.isLiveActive();
+  }
+
+  getLiveMetrics(): Partial<LiveMetrics> {
+    return this.live.getLiveMetrics();
   }
 
   getProducts(): LiveProduct[] {
@@ -37,76 +47,62 @@ export class TikTokShopAdapter implements ITikTokShopAdapter {
   }
 
   async pinProduct(productId: string): Promise<ActionResult> {
-    Logger.info(MODULE, 'pinProduct:', productId);
+    Logger.info(MODULE, `pinProduct chamado para ID: ${productId}`);
     return this.products.pinProduct(productId);
   }
 
   async unpinProduct(): Promise<ActionResult> {
-    Logger.info(MODULE, 'unpinProduct');
+    Logger.info(MODULE, 'unpinProduct chamado');
     return this.products.unpinProduct();
   }
 
-  getLiveMetrics(): Partial<LiveMetrics> {
-    return this.live.getLiveMetrics();
+  async refreshProducts(): Promise<ActionResult<LiveProduct[]>> {
+    return this.products.refreshProducts();
   }
 
   async sendChatMessage(text: string): Promise<ActionResult> {
     try {
-      // Localizar input do chat
-      const selectors = [
-        'input[class*="chat-input"]',
-        'input[placeholder*="coment"]',
-        'input[placeholder*="message"]',
-        '[contenteditable="true"]',
-      ];
-      let input: HTMLInputElement | HTMLElement | null = null;
-      for (const sel of selectors) {
-        input = document.querySelector(sel);
-        if (input) break;
-      }
+      const input = queryWithFallbacks(TikTokSelectors.chat.input) as HTMLInputElement | HTMLElement | null;
 
       if (!input) {
-        return { success: false, error: 'Input do chat não encontrado' };
+        return {
+          success: false,
+          error: 'Input de comentário do chat não encontrado no DOM',
+        };
       }
 
-      // Injetar texto
-      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype, 'value'
+      // Injeta o texto simulando digitação real e eventos sintéticos
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
       )?.set;
 
-      if (nativeInputValueSetter && input instanceof HTMLInputElement) {
-        nativeInputValueSetter.call(input, text);
+      if (nativeSetter && input instanceof HTMLInputElement) {
+        nativeSetter.call(input, text);
         input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
       } else {
-        (input as HTMLElement).textContent = text;
+        input.textContent = text;
         input.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
       }
 
-      await new Promise(r => setTimeout(r, 200));
+      await sleep(200);
 
-      // Clicar em enviar
-      const sendSelectors = [
-        '[class*="send-btn"]',
-        'button[class*="send"]',
-        '[data-testid="send-btn"]',
-      ];
-      let sendBtn: HTMLButtonElement | null = null;
-      for (const sel of sendSelectors) {
-        sendBtn = document.querySelector(sel);
-        if (sendBtn) break;
-      }
-
+      const sendBtn = queryWithFallbacks(TikTokSelectors.chat.sendButton) as HTMLButtonElement | null;
       if (sendBtn) {
         sendBtn.click();
-        Logger.info(MODULE, 'Mensagem enviada:', text.substring(0, 30));
+        Logger.info(MODULE, `Mensagem enviada no chat: "${text.substring(0, 30)}..."`);
         return { success: true };
       }
 
-      // Tentar Enter como fallback
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      // Fallback para envio com tecla Enter
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
       return { success: true };
     } catch (err) {
-      return { success: false, error: String(err) };
+      return {
+        success: false,
+        error: `Falha ao enviar mensagem no chat: ${String(err)}`,
+      };
     }
   }
 
@@ -115,5 +111,5 @@ export class TikTokShopAdapter implements ITikTokShopAdapter {
   }
 }
 
-// Singleton
+// Instância singleton
 export const tiktokAdapter = new TikTokShopAdapter();

@@ -1,29 +1,37 @@
 // ============================================================
-// Auto Live Shop V2 — Sales Detector
-// Detecta novas vendas via MutationObserver no DOM
+// Copilo Live Shop V2 — Sales Detector
+// Observa eventos de nova venda no DOM e extrai dados com deduplicação
 // ============================================================
+
 import { StateManager } from '@/core/StateManager';
 import { Logger } from '@/core/Logger';
 import { TikTokSelectors } from '@/adapters/tiktok-shop/TikTokSelectors';
-import { queryWithFallbacks, queryAllWithFallbacks, generateId } from '@/shared/utils';
-import { DEFAULTS } from '@/shared/constants';
+import { createUniqueHash } from '@/shared/utils';
 import type { Sale } from '@/shared/types';
 
 const MODULE = 'SalesDetector';
 
 export class SalesDetector {
   private observer: MutationObserver | null = null;
-  private seenIds = new Set<string>();
+  private seenHashes = new Set<string>();
+  private isRunning = false;
 
   start(): void {
-    Logger.info(MODULE, 'Iniciando observer de vendas...');
+    if (this.isRunning) return;
+    this.isRunning = true;
+    Logger.info(MODULE, 'Iniciando detector de vendas no DOM...');
     this._startObserver();
   }
 
   stop(): void {
-    this.observer?.disconnect();
-    this.observer = null;
-    Logger.info(MODULE, 'Parado');
+    if (!this.isRunning) return;
+    this.isRunning = false;
+
+    if (this.observer) {
+      this.observer.disconnect();
+      this.observer = null;
+    }
+    Logger.info(MODULE, 'Detector de vendas finalizado');
   }
 
   private _startObserver(): void {
@@ -31,57 +39,65 @@ export class SalesDetector {
       for (const mutation of mutations) {
         for (const node of Array.from(mutation.addedNodes)) {
           if (node.nodeType !== Node.ELEMENT_NODE) continue;
-          this._checkForSale(node as Element);
+          this._processNode(node as Element);
         }
       }
     });
 
-    this.observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
+    if (document.body) {
+      this.observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+    }
   }
 
-  private _checkForSale(node: Element): void {
-    // Verifica se o nó adicionado é uma notificação de venda
-    const isSaleNode = TikTokSelectors.sales.notification.some(sel => {
-      try { return node.matches(sel) || node.querySelector(sel); }
-      catch { return false; }
+  private _processNode(node: Element): void {
+    const isSaleNotification = TikTokSelectors.sales.notification.some(selector => {
+      try {
+        return node.matches(selector) || !!node.querySelector(selector);
+      } catch {
+        return false;
+      }
     });
 
-    if (!isSaleNode) return;
+    if (!isSaleNotification) return;
 
-    const sale = this._extractSale(node);
+    const sale = this._extractSaleInfo(node);
     if (!sale) return;
 
-    // Deduplicação
-    if (this.seenIds.has(sale.id)) return;
-    this.seenIds.add(sale.id);
+    const hash = createUniqueHash(sale.id);
+    if (this.seenHashes.has(hash)) return;
 
-    // Limpar IDs antigos para não vazar memória
-    if (this.seenIds.size > 500) {
-      const arr = Array.from(this.seenIds);
-      this.seenIds = new Set(arr.slice(arr.length - 200));
+    this.seenHashes.add(hash);
+
+    // Evita crescimento indefinido do conjunto de hashes
+    if (this.seenHashes.size > 500) {
+      const arr = Array.from(this.seenHashes);
+      this.seenHashes = new Set(arr.slice(arr.length - 250));
     }
 
-    Logger.info(MODULE, 'Nova venda detectada:', sale);
+    Logger.info(MODULE, `🛍 Nova venda detectada: ${sale.productName || 'Produto'} - R$ ${sale.amount ?? 0}`);
     StateManager.addSale(sale);
   }
 
-  private _extractSale(node: Element): Sale | null {
+  private _extractSaleInfo(node: Element): Sale | null {
     try {
       const text = node.textContent?.trim() || '';
-      const priceMatch = text.match(/R\$\s*([\d.,]+)/);
+      if (!text) return null;
+
+      const priceMatch = text.match(/R\$\s*([\d.,]+)/i);
       const amount = priceMatch
-        ? parseFloat(priceMatch[1].replace('.', '').replace(',', '.'))
+        ? parseFloat(priceMatch[1].replace(/\./g, '').replace(',', '.'))
         : undefined;
 
-      const productNameEl = node.querySelector('[class*="product-name"], [class*="product-title"]');
+      const productNameEl = node.querySelector(
+        '[class*="product-name"], [class*="product-title"], [class*="goods-name"]'
+      );
       const productName = productNameEl?.textContent?.trim() || undefined;
 
-      // ID baseado em conteúdo + timestamp para deduplicação
-      const contentHash = `${text.substring(0, 50)}_${Date.now()}`;
-      const id = btoa(contentHash).substring(0, 16);
+      const contentSignature = `${text.substring(0, 40)}_${Date.now()}`;
+      const id = createUniqueHash(contentSignature);
 
       return {
         id,
@@ -90,7 +106,8 @@ export class SalesDetector {
         quantity: 1,
         timestamp: Date.now(),
       };
-    } catch {
+    } catch (err) {
+      Logger.debug(MODULE, 'Erro ao extrair informações de venda:', err);
       return null;
     }
   }

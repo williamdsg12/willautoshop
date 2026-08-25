@@ -1,6 +1,8 @@
 // ============================================================
-// Auto Live Shop V2 — Product Controller
+// Copilo Live Shop V2 — Product Controller
+// Gerencia fixação, catálogo e desafixação de produtos
 // ============================================================
+
 import type { ActionResult, LiveProduct } from '@/shared/types';
 import { tiktokAdapter } from '@/adapters/tiktok-shop/TikTokShopAdapter';
 import { StateManager } from '@/core/StateManager';
@@ -10,95 +12,95 @@ import { Logger } from '@/core/Logger';
 const MODULE = 'ProductController';
 
 export class ProductController {
-
-  /** Busca e atualiza lista de produtos */
-  refreshProducts(): ActionResult<LiveProduct[]> {
+  /**
+   * Recarrega a lista de produtos do TikTok Shop.
+   */
+  async refreshProducts(): Promise<ActionResult<LiveProduct[]>> {
     try {
-      const products = tiktokAdapter.getProducts();
-      StateManager.setProducts(products);
-      Logger.info(MODULE, `${products.length} produtos carregados`);
-      return { success: true, data: products };
+      const result = await tiktokAdapter.refreshProducts();
+      if (result.success && result.data) {
+        StateManager.setProducts(result.data);
+        Logger.info(MODULE, `${result.data.length} produtos sincronizados`);
+        return result;
+      }
+
+      const currentProducts = tiktokAdapter.getProducts();
+      StateManager.setProducts(currentProducts);
+      return { success: true, data: currentProducts };
     } catch (err) {
-      Logger.error(MODULE, 'Erro ao buscar produtos:', err);
+      Logger.error(MODULE, 'Erro ao atualizar catálogo de produtos:', err);
       return { success: false, error: String(err) };
     }
   }
 
-  /** Fixa um produto */
+  /**
+   * Fixa um produto e sincroniza o estado.
+   */
   async pinProduct(productId: string): Promise<ActionResult> {
+    if (!productId) {
+      return { success: false, error: 'Identificador do produto é obrigatório' };
+    }
+
+    Logger.info(MODULE, `Fixando produto ID: ${productId}`);
     const result = await tiktokAdapter.pinProduct(productId);
+
     if (result.success) {
       StateManager.setPinnedProduct(productId);
       EventBus.emit('products:pinned', { productId });
-      EventBus.emit('toast:show', { message: '📌 Produto fixado', type: 'success' });
-    } else {
-      EventBus.emit('products:pin_failed', { error: result.error ?? 'Erro desconhecido' });
+      EventBus.emit('product:pinned', { productId });
       EventBus.emit('toast:show', {
-        message: `⚠ ${result.error || 'TikTok não confirmou a fixação'}`,
+        message: '📌 Produto fixado com sucesso',
+        type: 'success',
+      });
+    } else {
+      EventBus.emit('products:pin_failed', { error: result.error ?? 'Falha ao fixar' });
+      EventBus.emit('toast:show', {
+        message: `⚠ ${result.error || 'Ação não confirmada pelo TikTok Shop'}`,
         type: 'warn',
       });
     }
+
     return result;
   }
 
-  /** Desafixa o produto */
+  /**
+   * Desafixa o produto fixado na LIVE.
+   */
   async unpinProduct(): Promise<ActionResult> {
+    Logger.info(MODULE, 'Desafixando produto atual');
     const result = await tiktokAdapter.unpinProduct();
+
     if (result.success) {
       StateManager.setPinnedProduct(undefined);
       EventBus.emit('products:unpinned');
-      EventBus.emit('toast:show', { message: 'Produto desafixado', type: 'info' });
+      EventBus.emit('product:unpinned');
+      EventBus.emit('toast:show', {
+        message: 'Produto desafixado',
+        type: 'info',
+      });
     } else {
-      EventBus.emit('toast:show', { message: `⚠ ${result.error}`, type: 'warn' });
+      EventBus.emit('toast:show', {
+        message: `⚠ ${result.error || 'Não foi possível desafixar'}`,
+        type: 'warn',
+      });
     }
+
     return result;
   }
-}
 
-// ============================================================
-// Auto Live Shop V2 — Automation Controller
-// ============================================================
-import { ALARMS } from '@/shared/constants';
-
-const AUTO_MODULE = 'AutomationController';
-
-export class AutomationController {
-  private repinTimer: ReturnType<typeof setInterval> | null = null;
-  private productController = new ProductController();
-
-  start(productId: string, intervalSecs: number): void {
-    this.stop();
-    Logger.info(AUTO_MODULE, `Automação iniciada — produto: ${productId}, intervalo: ${intervalSecs}s`);
-    StateManager.patchLive({
-      automationEnabled: true,
-      automationProductId: productId,
-      automationIntervalSecs: intervalSecs,
-    });
-
-    EventBus.emit('automation:started', { productId, intervalSecs });
-    EventBus.emit('toast:show', { message: '▶ Automação de fixação iniciada', type: 'success' });
-
-    this.repinTimer = setInterval(async () => {
-      if (StateManager.live.status !== 'LIVE_ACTIVE') {
-        this.stop();
-        return;
-      }
-      Logger.debug(AUTO_MODULE, 'Refixando produto:', productId);
-      EventBus.emit('automation:repin', { productId });
-      await this.productController.pinProduct(productId);
-    }, intervalSecs * 1000);
+  /**
+   * Retorna os produtos armazenados no estado central.
+   */
+  getProducts(): LiveProduct[] {
+    return [...StateManager.products];
   }
 
-  stop(): void {
-    if (this.repinTimer) {
-      clearInterval(this.repinTimer);
-      this.repinTimer = null;
-    }
-    StateManager.patchLive({ automationEnabled: false });
-    EventBus.emit('automation:stopped');
-  }
-
-  isRunning(): boolean {
-    return this.repinTimer !== null;
+  /**
+   * Retorna o produto atualmente fixado.
+   */
+  getPinnedProduct(): LiveProduct | null {
+    const pinnedId = StateManager.live.pinnedProductId;
+    if (!pinnedId) return null;
+    return StateManager.products.find(p => p.id === pinnedId) || null;
   }
 }

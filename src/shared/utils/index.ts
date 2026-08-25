@@ -1,46 +1,41 @@
 // ============================================================
-// Auto Live Shop V2 — Shared Utilities
+// Copilo Live Shop V2 — Shared Utilities
 // ============================================================
 
-/** Formata ms em HH:MM:SS */
-export function formatDuration(ms: number): string {
-  const s = Math.floor(ms / 1000);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+import { TIKTOK_LIVE_URLS } from '../constants';
+
+/**
+ * Gera um identificador único alfanumérico.
+ */
+export function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/** Pad number com zero à esquerda */
-export function pad(n: number): string {
-  return String(n).padStart(2, '0');
+/**
+ * Cria um hash único determinístico simples a partir de uma string ou objeto
+ * para deduplicação de vendas e eventos.
+ */
+export function createUniqueHash(input: string | object): string {
+  const str = typeof input === 'string' ? input : JSON.stringify(input);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0; // Convert to 32bit integer
+  }
+  return `hash_${Math.abs(hash).toString(36)}_${str.length}`;
 }
 
-/** Formata valor em BRL */
-export function formatBRL(value: number): string {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+/**
+ * Pausa a execução de forma assíncrona por X milissegundos.
+ */
+export function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/** Formata tempo relativo (agora, há Xs, há X min) */
-export function formatRelativeTime(timestamp: number): string {
-  const diff = Math.floor((Date.now() - timestamp) / 1000);
-  if (diff < 5)  return 'agora';
-  if (diff < 60) return `há ${diff}s`;
-  if (diff < 3600) return `há ${Math.floor(diff / 60)} min`;
-  return `há ${Math.floor(diff / 3600)}h`;
-}
-
-/** Escapa HTML para evitar XSS */
-export function escHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-/** Debounce */
+/**
+ * Debounce genérico e tipado.
+ */
 export function debounce<T extends (...args: unknown[]) => void>(
   fn: T,
   delay: number,
@@ -52,7 +47,9 @@ export function debounce<T extends (...args: unknown[]) => void>(
   };
 }
 
-/** Throttle */
+/**
+ * Throttle genérico e tipado.
+ */
 export function throttle<T extends (...args: unknown[]) => void>(
   fn: T,
   limit: number,
@@ -67,32 +64,107 @@ export function throttle<T extends (...args: unknown[]) => void>(
   };
 }
 
-/** Gera ID único simples */
-export function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-/** Sleep */
-export function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/** Clamp value between min and max */
+/**
+ * Limita um número entre min e max.
+ */
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-/** Verifica se URL é uma página de live do TikTok Shop */
-export function isTikTokLivePage(url: string = window.location.href): boolean {
-  return (
-    url.includes('shop.tiktok.com/streamer') ||
-    url.includes('/live-studio') ||
-    url.includes('/creator/live') ||
-    url.includes('tiktokshop') && url.includes('live')
-  );
+/**
+ * Formata um valor numérico em moeda BRL (R$).
+ */
+export function formatCurrency(value: number): string {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-/** Tenta encontrar elemento no DOM com múltiplos seletores (fallback) */
+/**
+ * Alias de formatCurrency para retrocompatibilidade.
+ */
+export const formatBRL = formatCurrency;
+
+/**
+ * Formata números com separador de milhar.
+ */
+export function formatNumber(value: number): string {
+  return value.toLocaleString('pt-BR');
+}
+
+/**
+ * Formata milissegundos no formato HH:MM:SS.
+ */
+export function formatDuration(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+
+/**
+ * Adiciona zero à esquerda para números menores que 10.
+ */
+export function pad(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+/**
+ * Formata tempo relativo amigável (agora, há Xs, há X min, há Xh).
+ */
+export function formatRelativeTime(timestamp: number): string {
+  const diff = Math.floor((Date.now() - timestamp) / 1000);
+  if (diff < 5) return 'agora';
+  if (diff < 60) return `há ${diff}s`;
+  if (diff < 3600) return `há ${Math.floor(diff / 60)} min`;
+  return `há ${Math.floor(diff / 3600)}h`;
+}
+
+/**
+ * Parse seguro de JSON com valor de fallback em caso de falha.
+ */
+export function safeJsonParse<T>(jsonString: string | null | undefined, fallback: T): T {
+  if (!jsonString) return fallback;
+  try {
+    return JSON.parse(jsonString) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Escapa HTML para prevenir injeção XSS.
+ */
+export function escHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * Verifica se a URL informada pertence ao ambiente do TikTok Shop.
+ */
+export function isTikTokShopUrl(url: string = window.location.href): boolean {
+  return TIKTOK_LIVE_URLS.some(target => url.includes(target));
+}
+
+/**
+ * Alias para verificação de página de Live do TikTok Shop.
+ */
+export const isTikTokLivePage = isTikTokShopUrl;
+
+/**
+ * Obtém a rota / pathname atual do navegador.
+ */
+export function getCurrentRoute(): string {
+  return window.location.pathname + window.location.search;
+}
+
+/**
+ * Tenta encontrar elemento no DOM com múltiplos seletores (fallback).
+ */
 export function queryWithFallbacks(
   selectors: string[],
   context: Document | Element = document,
@@ -102,13 +174,15 @@ export function queryWithFallbacks(
       const el = context.querySelector(selector);
       if (el) return el;
     } catch {
-      // seletor inválido — ignorar
+      // Ignora erro de seletor inválido
     }
   }
   return null;
 }
 
-/** Tenta encontrar múltiplos elementos no DOM com fallbacks */
+/**
+ * Tenta encontrar múltiplos elementos no DOM com lista de fallbacks.
+ */
 export function queryAllWithFallbacks(
   selectors: string[],
   context: Document | Element = document,
@@ -118,13 +192,15 @@ export function queryAllWithFallbacks(
       const els = Array.from(context.querySelectorAll(selector));
       if (els.length > 0) return els;
     } catch {
-      // seletor inválido — ignorar
+      // Ignora erro de seletor inválido
     }
   }
   return [];
 }
 
-/** Aguarda um elemento aparecer no DOM */
+/**
+ * Aguarda um elemento aparecer no DOM via MutationObserver com timeout.
+ */
 export function waitForElement(
   selectors: string[],
   timeout = 10_000,
@@ -132,14 +208,26 @@ export function waitForElement(
   return new Promise(resolve => {
     const check = () => queryWithFallbacks(selectors);
     const existing = check();
-    if (existing) { resolve(existing); return; }
+    if (existing) {
+      resolve(existing);
+      return;
+    }
 
     const observer = new MutationObserver(() => {
       const el = check();
-      if (el) { observer.disconnect(); resolve(el); }
+      if (el) {
+        observer.disconnect();
+        resolve(el);
+      }
     });
-    observer.observe(document.body, { childList: true, subtree: true });
 
-    setTimeout(() => { observer.disconnect(); resolve(null); }, timeout);
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    setTimeout(() => {
+      observer.disconnect();
+      resolve(null);
+    }, timeout);
   });
 }

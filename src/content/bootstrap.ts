@@ -1,23 +1,29 @@
 // ============================================================
-// Auto Live Shop V2 — Content Script Bootstrap
-// Entry point injetado em todas as páginas do TikTok
+// Copilo Live Shop V2 — Content Script Bootstrap
+// Ponto de entrada injetado em páginas do TikTok Shop
 // ============================================================
-import { PANEL_ROOT_ID, PANEL_FLAG } from '@/shared/constants';
-import { isTikTokLivePage, sleep } from '@/shared/utils';
+
+import { PANEL_FLAG, APP_NAME } from '@/shared/constants';
+import { sleep } from '@/shared/utils';
 import { Logger } from '@/core/Logger';
 import { StateManager } from '@/core/StateManager';
 import { StorageManager } from '@/core/StorageManager';
 import { MessageBus } from '@/core/MessageBus';
 import { EventBus } from '@/core/EventBus';
+
+// Detectores e Injetores
+import { PageDetector } from './page-detector';
+import { PanelInjector } from './panel-injector';
 import { LiveDetector } from '@/detectors/LiveDetector';
 import { SalesDetector } from '@/detectors/SalesDetector';
-import { FloatingPanel } from '@/ui/FloatingPanel/FloatingPanel';
-import { LiveHeartbeatService } from '@/services/index';
+import { ProductDetector } from '@/detectors/ProductDetector';
+import { MetricsDetector } from '@/detectors/MetricsDetector';
+import { LiveHeartbeatService } from '@/services/LiveHeartbeatService';
 
 const MODULE = 'Bootstrap';
 
 // ─────────────────────────────────────────────────────────────
-// Anti-duplicação: garantir que só um painel exista
+// Proteção contra duplicação de execução de scripts
 // ─────────────────────────────────────────────────────────────
 declare global {
   interface Window {
@@ -26,128 +32,129 @@ declare global {
 }
 
 if (window.__AUTO_LIVE_SHOP_INITIALIZED__) {
-  Logger.warn(MODULE, 'Já inicializado — ignorando');
+  Logger.warn(MODULE, `${APP_NAME} já inicializado nesta página — cancelando execução redundante`);
 } else {
   window.__AUTO_LIVE_SHOP_INITIALIZED__ = true;
-  init();
+  startBootstrap();
 }
 
 // ─────────────────────────────────────────────────────────────
-// Inicialização principal
+// Fluxo de Inicialização
 // ─────────────────────────────────────────────────────────────
-async function init() {
-  Logger.info(MODULE, '🚀 Auto Live Shop V2 inicializando...');
-  Logger.info(MODULE, 'URL:', window.location.href);
+async function startBootstrap(): Promise<void> {
+  Logger.info(MODULE, `🚀 Inicializando ${APP_NAME}...`);
+  Logger.info(MODULE, `URL atual: ${window.location.href}`);
 
-  // Hidratar estado do storage
-  const [panelState, settings] = await Promise.all([
+  const pageDetector = new PageDetector();
+  const panelInjector = new PanelInjector();
+
+  // 1. Hidrata o estado a partir do Storage
+  const [panelState, settings, license] = await Promise.all([
     StorageManager.getPanelState(),
     StorageManager.getSettings(),
+    StorageManager.getLicense(),
   ]);
-  StateManager.hydrate({ panel: panelState, settings });
 
-  // Marcar como inicializado no storage
+  StateManager.hydrate({
+    panel: panelState,
+    settings,
+    license,
+  });
+
   await StorageManager.setInitialized();
 
-  // Configurar MessageBus
-  setupMessageBus();
+  // 2. Configura o barramento de mensagens entre content e background
+  setupMessageBus(panelInjector);
 
-  // Verificar se é página de live
-  if (!isTikTokLivePage()) {
-    Logger.info(MODULE, 'Não é página de live — monitorando navegação...');
-    watchForLivePage();
+  // 3. Se não for página de TikTok Shop, apenas observa navegações
+  if (!pageDetector.isTargetPage()) {
+    Logger.info(MODULE, 'Página não elegível para inicialização imediata — aguardando navegação...');
+    const unwatch = pageDetector.watchNavigation(async () => {
+      if (pageDetector.isTargetPage()) {
+        unwatch();
+        await initializeSession(panelInjector);
+      }
+    });
     return;
   }
 
-  await startLiveSession();
+  // 4. Inicializa a sessão completa
+  await initializeSession(panelInjector);
+
+  // 5. Monitora navegação SPA permanente
+  pageDetector.watchNavigation(async () => {
+    if (pageDetector.isTargetPage() && !panelInjector.isAlreadyInjected()) {
+      await initializeSession(panelInjector);
+    }
+  });
 }
 
 // ─────────────────────────────────────────────────────────────
-// Sessão de live
+// Inicialização dos Serviços e Painel da Sessão
 // ─────────────────────────────────────────────────────────────
-let panel: FloatingPanel | null = null;
 let liveDetector: LiveDetector | null = null;
 let salesDetector: SalesDetector | null = null;
-let heartbeat: LiveHeartbeatService | null = null;
+let productDetector: ProductDetector | null = null;
+let metricsDetector: MetricsDetector | null = null;
+let heartbeatService: LiveHeartbeatService | null = null;
 
-async function startLiveSession() {
-  Logger.info(MODULE, '🔴 Iniciando sessão de live...');
+async function initializeSession(injector: PanelInjector): Promise<void> {
+  Logger.info(MODULE, '🔴 Inicializando sessão e detectores...');
 
-  // Aguardar DOM carregar completamente
+  // Aguarda carregamento do DOM
   if (document.readyState !== 'complete') {
-    await new Promise(r => window.addEventListener('load', r, { once: true }));
+    await new Promise(resolve => window.addEventListener('load', resolve, { once: true }));
   }
-  await sleep(1500); // Aguarda SPA renderizar
+  await sleep(1200);
 
-  // Verificar se já existe painel
-  if (document.getElementById(PANEL_ROOT_ID)) {
-    Logger.warn(MODULE, 'Painel já existe no DOM — ignorando');
-    return;
-  }
+  // 1. Injeta o painel flutuante
+  await injector.inject();
 
-  // Montar painel flutuante
-  panel = new FloatingPanel();
-  await panel.mount();
-
-  // Iniciar detectores
+  // 2. Inicializa os detectores de DOM
   liveDetector = new LiveDetector();
   liveDetector.start();
 
   salesDetector = new SalesDetector();
   salesDetector.start();
 
-  // Iniciar heartbeat
-  heartbeat = new LiveHeartbeatService(10);
-  heartbeat.start();
+  productDetector = new ProductDetector();
+  productDetector.start();
 
-  // Parar automações quando live encerrar
+  metricsDetector = new MetricsDetector();
+  metricsDetector.start();
+
+  // 3. Inicializa serviço de heartbeat
+  heartbeatService = new LiveHeartbeatService(10);
+  heartbeatService.start();
+
+  // 4. Cleanup ao encerrar live
   EventBus.on('live:ended', () => {
-    Logger.info(MODULE, 'Live encerrada — parando serviços');
-    heartbeat?.stop();
-    salesDetector?.stop();
+    Logger.info(MODULE, 'Sessão finalizada pelo evento live:ended');
   });
 
-  Logger.info(MODULE, '✅ Sessão de live ativa');
+  Logger.info(MODULE, `✅ Sessão do ${APP_NAME} ativa e monitorando`);
 }
 
 // ─────────────────────────────────────────────────────────────
-// Watcher de navegação SPA
+// MessageBus Handlers
 // ─────────────────────────────────────────────────────────────
-function watchForLivePage() {
-  let lastUrl = window.location.href;
-  const interval = setInterval(async () => {
-    const currentUrl = window.location.href;
-    if (currentUrl === lastUrl) return;
-    lastUrl = currentUrl;
-    Logger.info(MODULE, 'SPA navigation:', currentUrl);
-
-    if (isTikTokLivePage(currentUrl) && !document.getElementById(PANEL_ROOT_ID)) {
-      clearInterval(interval);
-      await startLiveSession();
-    }
-  }, 1000);
-}
-
-// ─────────────────────────────────────────────────────────────
-// MessageBus handlers (recebe comandos do background)
-// ─────────────────────────────────────────────────────────────
-function setupMessageBus() {
+function setupMessageBus(injector: PanelInjector): void {
   MessageBus.listen();
 
   MessageBus.on('ALS_PING', () => ({
     ok: true,
+    name: APP_NAME,
     url: window.location.href,
-    isLivePage: isTikTokLivePage(),
-    liveStatus: StateManager.live.status,
+    status: StateManager.live.status,
+    isInjected: injector.isAlreadyInjected(),
   }));
 
   MessageBus.on('ALS_GET_STATE', () => ({
-    live: StateManager.live,
-    panel: StateManager.panel,
+    state: StateManager.getState(),
   }));
 
   MessageBus.on('ALS_HEARTBEAT', () => {
     StateManager.heartbeat();
-    return { ok: true };
+    return { ok: true, timestamp: Date.now() };
   });
 }

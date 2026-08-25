@@ -1,106 +1,100 @@
 // ============================================================
-// Auto Live Shop V2 — Background Service Worker
+// Copilo Live Shop V2 — Background Service Worker
+// Entry point de segundo plano para Manifest V3
 // ============================================================
-import { COMMANDS, ALARMS, STORAGE_KEYS } from '@/shared/constants';
+
+import { COMMANDS, STORAGE_KEYS, APP_NAME } from '@/shared/constants';
 import { Logger } from '@/core/Logger';
+import { LiveBackgroundService } from './LiveBackgroundService';
 
 const MODULE = 'ServiceWorker';
+const liveBgService = new LiveBackgroundService();
 
-// ── Instalação ────────────────────────────────────────────────
+// Inicializa serviços de background
+liveBgService.init();
+
+// ── Instalação e Atualização ──────────────────────────────────
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
-  Logger.info(MODULE, 'onInstalled:', reason);
+  Logger.info(MODULE, `Extensão ${APP_NAME} instalada/atualizada [Razão: ${reason}]`);
 
   if (reason === 'install') {
     await chrome.storage.local.set({
       [STORAGE_KEYS.INITIALIZED]: false,
     });
-    Logger.info(MODULE, 'Storage inicializado');
+    Logger.info(MODULE, 'Storage inicializado para primeiro uso');
   }
 });
 
-// ── Message handler ───────────────────────────────────────────
+// ── Roteador Central de Mensagens ─────────────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  const { type } = msg;
+  if (!msg || !msg.type) return false;
 
-  // ─ Agendar encerramento automático ──────────────────────
-  if (type === COMMANDS.HEARTBEAT) {
-    sendResponse({ ok: true, ts: Date.now() });
-    return false;
-  }
+  const { type, payload } = msg;
 
-  // ─ Notificação Chrome ────────────────────────────────────
-  if (type === 'ALS_NOTIFY') {
-    const { title, message } = msg.payload as { title: string; message: string };
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'icons/icon48.png',
-      title: title || 'Auto Live Shop',
-      message: message || '',
-      priority: 1,
-    });
-    sendResponse({ ok: true });
-    return false;
-  }
+  switch (type) {
+    case COMMANDS.HEARTBEAT:
+    case 'ALS_HEARTBEAT':
+      sendResponse({ ok: true, timestamp: Date.now() });
+      return false;
 
-  // ─ Schedule auto-close alarm ────────────────────────────
-  if (type === 'ALS_SCHEDULE_CLOSE') {
-    const { delayMs } = msg.payload as { delayMs: number };
-    chrome.alarms.create(ALARMS.AUTO_CLOSE, { when: Date.now() + delayMs });
-    sendResponse({ ok: true });
-    return false;
-  }
-
-  // ─ Cancel alarm ─────────────────────────────────────────
-  if (type === 'ALS_CANCEL_ALARM') {
-    const { name } = msg.payload as { name: string };
-    chrome.alarms.clear(name);
-    sendResponse({ ok: true });
-    return false;
-  }
-
-  return false;
-});
-
-// ── Alarm handler ─────────────────────────────────────────────
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  Logger.info(MODULE, 'Alarm:', alarm.name);
-
-  if (alarm.name === ALARMS.AUTO_CLOSE) {
-    // Enviar para a aba ativa
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tabs[0]?.id) {
-      chrome.tabs.sendMessage(tabs[0].id, { type: 'ALS_AUTO_CLOSE_TRIGGERED' }).catch(() => {});
+    case 'ALS_NOTIFY': {
+      const data = payload as { title?: string; message?: string; priority?: number };
+      liveBgService.sendNotification(
+        data.title || APP_NAME,
+        data.message || '',
+        data.priority || 1,
+      );
+      sendResponse({ ok: true });
+      return false;
     }
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'icons/icon48.png',
-      title: '⚠️ Auto Live Shop',
-      message: 'Encerramento automático acionado!',
-      priority: 2,
-    });
+
+    case 'ALS_SCHEDULE_CLOSE': {
+      const { delayMs } = (payload || {}) as { delayMs?: number };
+      if (delayMs && delayMs > 0) {
+        liveBgService.scheduleAutoClose(delayMs);
+        sendResponse({ ok: true });
+      } else {
+        sendResponse({ ok: false, error: 'Intervalo inválido' });
+      }
+      return false;
+    }
+
+    case 'ALS_CANCEL_ALARM': {
+      const { name } = (payload || {}) as { name?: string };
+      if (name) {
+        liveBgService.cancelAlarm(name);
+        sendResponse({ ok: true });
+      }
+      return false;
+    }
+
+    default:
+      return false;
   }
 });
 
-// ── Ação do ícone ─────────────────────────────────────────────
-// Ao clicar no ícone da extensão, não há popup —
-// o painel é injetado diretamente na página pelo content script
+// ── Clique no Ícone da Extensão ───────────────────────────────
+// Injeta ou foca o painel flutuante na aba ativa
 chrome.action.onClicked.addListener(async (tab) => {
-  Logger.info(MODULE, 'Ícone clicado — tab:', tab.id);
   if (!tab.id) return;
+  Logger.info(MODULE, `Ação disparada pelo ícone na aba ${tab.id}`);
 
   try {
-    // Verificar se o painel está visível
-    const response = await chrome.tabs.sendMessage(tab.id, { type: 'ALS_PING' }).catch(() => null);
-    if (!response) {
-      // Tentar injetar content script manualmente (para páginas já abertas)
+    const pingResponse = await chrome.tabs.sendMessage(tab.id, {
+      type: 'ALS_PING',
+      timestamp: Date.now(),
+    }).catch(() => null);
+
+    if (!pingResponse) {
+      Logger.info(MODULE, 'Injetando content script na página...');
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         files: ['content/bootstrap.js'],
-      }).catch(err => Logger.warn(MODULE, 'Erro ao injetar script:', err));
+      }).catch(err => Logger.warn(MODULE, 'Injeção direta falhou:', err));
     }
   } catch (err) {
-    Logger.warn(MODULE, 'Erro ao comunicar com tab:', err);
+    Logger.warn(MODULE, 'Erro ao comunicar com a aba ativa:', err);
   }
 });
 
-Logger.info(MODULE, '✅ Service Worker ativo');
+Logger.info(MODULE, `✅ Service Worker do ${APP_NAME} ativo`);

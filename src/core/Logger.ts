@@ -1,44 +1,64 @@
 // ============================================================
-// Auto Live Shop V2 — Logger
+// Copilo Live Shop V2 — Logger
+// Sistema de logging estruturado e configurável
 // ============================================================
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+import { APP_NAME } from '@/shared/constants';
 
-const COLORS: Record<LogLevel, string> = {
-  debug: '#64748b',
-  info:  '#14b8a6',
-  warn:  '#f97316',
-  error: '#ef4444',
+export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+
+const LOG_COLORS: Record<LogLevel, string> = {
+  DEBUG: '#64748b',
+  INFO:  '#22c55e',
+  WARN:  '#f97316',
+  ERROR: '#ef4444',
 };
 
 class LoggerClass {
-  private prefix = '[ALS]';
-  private enabled = true;
+  private prefix = APP_NAME;
+  private debugEnabled = true;
 
-  setEnabled(val: boolean) { this.enabled = val; }
-
-  debug(module: string, ...args: unknown[]) {
-    this._log('debug', module, ...args);
-  }
-  info(module: string, ...args: unknown[]) {
-    this._log('info', module, ...args);
-  }
-  warn(module: string, ...args: unknown[]) {
-    this._log('warn', module, ...args);
-  }
-  error(module: string, ...args: unknown[]) {
-    this._log('error', module, ...args);
+  /** Ativa ou desativa logs de nível DEBUG */
+  setDebugEnabled(enabled: boolean): void {
+    this.debugEnabled = enabled;
   }
 
-  private _log(level: LogLevel, module: string, ...args: unknown[]) {
-    if (!this.enabled && level === 'debug') return;
-    const color = COLORS[level];
-    const label = `${this.prefix}[${module}]`;
-    console[level === 'debug' ? 'log' : level](
-      `%c${label}`,
-      `color:${color};font-weight:bold`,
-      ...args,
-    );
+  debug(module: string, message: string, ...args: unknown[]): void {
+    if (!this.debugEnabled) return;
+    this._log('DEBUG', module, message, ...args);
+  }
+
+  info(module: string, message: string, ...args: unknown[]): void {
+    this._log('INFO', module, message, ...args);
+  }
+
+  warn(module: string, message: string, ...args: unknown[]): void {
+    this._log('WARN', module, message, ...args);
+  }
+
+  error(module: string, message: string, ...args: unknown[]): void {
+    this._log('ERROR', module, message, ...args);
+  }
+
+  private _log(level: LogLevel, module: string, message: string, ...args: unknown[]): void {
+    const color = LOG_COLORS[level];
+    const tag = `[${this.prefix}][${module}]`;
+    const fullMessage = `${tag} ${message}`;
+
+    switch (level) {
+      case 'DEBUG':
+        console.log(`%c${tag}`, `color:${color};font-weight:600;`, message, ...args);
+        break;
+      case 'INFO':
+        console.info(`%c${tag}`, `color:${color};font-weight:bold;`, message, ...args);
+        break;
+      case 'WARN':
+        console.warn(`%c${tag}`, `color:${color};font-weight:bold;`, message, ...args);
+        break;
+      case 'ERROR':
+        console.error(`%c${tag}`, `color:${color};font-weight:bold;`, message, ...args);
+        break;
+    }
   }
 }
 

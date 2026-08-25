@@ -1,109 +1,148 @@
 // ============================================================
-// Auto Live Shop V2 — Floating Panel
-// Injetado no DOM do TikTok Shop via Shadow DOM
+// Copilo Live Shop V2 — Floating Panel
+// Painel flutuante injetado via Shadow DOM no DOM do TikTok Shop
 // ============================================================
+
 import { EventBus } from '@/core/EventBus';
 import { StateManager } from '@/core/StateManager';
 import { StorageManager } from '@/core/StorageManager';
 import { Logger } from '@/core/Logger';
-import { ProductController, AutomationController } from '@/controllers/ProductController';
-import { tiktokAdapter } from '@/adapters/tiktok-shop/TikTokShopAdapter';
-import { AudioManager, LicenseManager } from '@/services/index';
-import { PANEL_ROOT_ID, DEFAULTS } from '@/shared/constants';
-import { formatBRL, formatRelativeTime, formatDuration, escHtml, clamp } from '@/shared/utils';
-import type { LiveStatus, LiveMetrics, Sale, LiveProduct, AppSettings } from '@/shared/types';
+import { PANEL_ROOT_ID, PANEL_DEFAULTS, APP_NAME, APP_VERSION } from '@/shared/constants';
+import { formatCurrency, formatRelativeTime, escHtml } from '@/shared/utils';
+import type { LiveStatus, LiveMetrics, Sale, LiveProduct } from '@/shared/types';
 
-// CSS inlined via Vite ?inline
+// Managers e Componentes UI
+import { PanelPositionManager } from './PanelPositionManager';
+import { PanelDragManager } from './PanelDragManager';
+import { PanelVisibilityManager } from './PanelVisibilityManager';
+import { Header } from '../Header/Header';
+import { TabManager } from '../Tabs/TabManager';
+import { ToastManager } from '../Toasts/ToastManager';
+
+// Módulos de Domínio
+import { DashboardModule } from '@/modules/dashboard/DashboardModule';
+import { ProductsModule } from '@/modules/products/ProductsModule';
+import { SalesModule } from '@/modules/sales/SalesModule';
+import { GoalsModule } from '@/modules/goals/GoalsModule';
+import { AutomationModule } from '@/modules/automation/AutomationModule';
+import { SettingsModule } from '@/modules/settings/SettingsModule';
+import { AudioManager } from '@/services/AudioManager';
+
+// CSS do painel injetado via Vite
 import panelCss from '@/styles/panel.css?inline';
 
 const MODULE = 'FloatingPanel';
 
-// ── Drag State ────────────────────────────────────────────────
-interface DragState { dragging: boolean; startX: number; startY: number; startLeft: number; startTop: number; }
-
 export class FloatingPanel {
   private host!: HTMLElement;
   private shadow!: ShadowRoot;
-  private panel!: HTMLElement;
-  private productCtrl = new ProductController();
-  private automationCtrl = new AutomationController();
+  private panelEl!: HTMLElement;
+
+  // Gerenciadores de UI
+  private positionMgr!: PanelPositionManager;
+  private dragMgr!: PanelDragManager;
+  private visibilityMgr!: PanelVisibilityManager;
+  private headerComp!: Header;
+  private tabMgr!: TabManager;
+  private toastMgr!: ToastManager;
+
+  // Módulos
+  private dashboardMod = new DashboardModule();
+  private productsMod = new ProductsModule();
+  private salesMod = new SalesModule();
+  private goalsMod = new GoalsModule();
+  private automationMod = new AutomationModule();
+  private settingsMod = new SettingsModule();
   private audioMgr = new AudioManager();
-  private licenseMgr = new LicenseManager();
-  private drag: DragState = { dragging: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 };
-  private activeTab = 'painel';
+
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private editingReplyId: number | null = null;
 
-  // ── Montagem ──────────────────────────────────────────────
   async mount(): Promise<void> {
-    Logger.info(MODULE, 'Montando painel...');
+    Logger.info(MODULE, `Montando ${APP_NAME}...`);
 
-    // Criar host + shadow root
+    // 1. Cria container host
     this.host = document.createElement('div');
     this.host.id = PANEL_ROOT_ID;
     this.host.style.cssText = 'all:initial;position:fixed;z-index:2147483647;top:0;left:0;';
     document.body.appendChild(this.host);
 
+    // 2. Cria Shadow DOM para isolar CSS do TikTok
     this.shadow = this.host.attachShadow({ mode: 'open' });
 
-    // Injetar CSS
+    // 3. Injeta folha de estilos
     const style = document.createElement('style');
     style.textContent = panelCss;
     this.shadow.appendChild(style);
 
-    // Restaurar posição
+    // 4. Carrega estado inicial do storage
     const panelState = await StorageManager.getPanelState();
 
-    // Criar painel
-    this.panel = document.createElement('div');
-    this.panel.className = 'als-panel';
-    this.panel.style.setProperty('--als-x', `${panelState.x ?? DEFAULTS.PANEL_X}px`);
-    this.panel.style.setProperty('--als-y', `${panelState.y ?? DEFAULTS.PANEL_Y}px`);
-    this.panel.style.setProperty('--als-w', `${panelState.width ?? DEFAULTS.PANEL_WIDTH}px`);
-    this.panel.style.setProperty('--als-h', `${panelState.height ?? DEFAULTS.PANEL_HEIGHT}px`);
-    if (panelState.minimized) this.panel.classList.add('minimized');
+    // 5. Monta estrutura do painel
+    this.panelEl = document.createElement('div');
+    this.panelEl.className = 'als-panel';
+    const initX = panelState.position?.x ?? panelState.x ?? PANEL_DEFAULTS.DEFAULT_X;
+    const initY = panelState.position?.y ?? panelState.y ?? PANEL_DEFAULTS.DEFAULT_Y;
+    const initW = panelState.size?.width ?? panelState.width ?? PANEL_DEFAULTS.WIDTH;
+    const initH = panelState.size?.height ?? panelState.height ?? PANEL_DEFAULTS.HEIGHT;
 
-    this.panel.innerHTML = this._buildHTML();
-    this.shadow.appendChild(this.panel);
+    this.panelEl.style.setProperty('--als-x', `${initX}px`);
+    this.panelEl.style.setProperty('--als-y', `${initY}px`);
+    this.panelEl.style.setProperty('--als-w', `${initW}px`);
+    this.panelEl.style.setProperty('--als-h', `${initH}px`);
 
+    if (panelState.minimized) {
+      this.panelEl.classList.add('minimized');
+    }
+
+    this.panelEl.innerHTML = this._buildHTML();
+    this.shadow.appendChild(this.panelEl);
+
+    // 6. Instancia gerenciadores e componentes
+    this._initializeComponents();
     this._bindEvents();
-    this._bindDrag();
-    this._subscribeToState();
-    this._hydrateSettings();
+    this._subscribeEvents();
+    await this._hydrate();
     this._startTimer();
 
-    Logger.info(MODULE, '✅ Painel montado');
+    Logger.info(MODULE, `✅ ${APP_NAME} montado com sucesso`);
   }
 
   unmount(): void {
     this._stopTimer();
+    this.dragMgr?.destroy();
     this.host.remove();
-    EventBus.removeAll();
+    EventBus.clear();
   }
 
-  // ── HTML do painel ───────────────────────────────────────
+  private _initializeComponents(): void {
+    const headerContainer = this.shadow.querySelector<HTMLElement>('#als-header-container')!;
+    const minimizeBtn = this.shadow.querySelector<HTMLElement>('#als-btn-minimize')!;
+
+    this.positionMgr = new PanelPositionManager(this.panelEl);
+    this.dragMgr = new PanelDragManager(this.panelEl, headerContainer, this.positionMgr);
+    this.visibilityMgr = new PanelVisibilityManager(this.panelEl, minimizeBtn);
+
+    this.headerComp = new Header(
+      headerContainer,
+      () => this.visibilityMgr.toggleMinimize(),
+      () => this.visibilityMgr.close(),
+    );
+
+    const nav = this.shadow.querySelector<HTMLElement>('.als-tab-nav')!;
+    const content = this.shadow.querySelector<HTMLElement>('.als-content')!;
+    this.tabMgr = new TabManager(nav, content);
+
+    const toastContainer = this.shadow.querySelector<HTMLElement>('#als-toasts')!;
+    this.toastMgr = new ToastManager(toastContainer);
+  }
+
   private _buildHTML(): string {
     return `
-      <!-- HEADER -->
-      <div class="als-header" id="als-drag-handle">
-        <div class="als-header-left">
-          <div class="als-logo">▶</div>
-          <div class="als-brand">
-            <span class="als-brand-name">AUTO LIVE SHOP</span>
-            <span class="als-brand-sub">Copiloto de Lives</span>
-          </div>
-        </div>
-        <div class="als-header-right">
-          <div class="als-live-badge detecting" id="als-status-badge">
-            <span class="als-live-dot"></span>
-            <span id="als-status-text">DETECTANDO</span>
-          </div>
-          <button class="als-icon-btn" id="als-btn-minimize" title="Minimizar">−</button>
-          <button class="als-icon-btn" id="als-btn-close" title="Fechar">✕</button>
-        </div>
-      </div>
+      <!-- HEADER COMPONENT CONTAINER -->
+      <div class="als-header" id="als-header-container"></div>
 
-      <!-- TABS -->
+      <!-- TABS NAVIGATION -->
       <nav class="als-tab-nav">
         <button class="als-tab-btn active" data-tab="painel">
           <span class="als-tab-icon">📊</span>
@@ -123,34 +162,34 @@ export class FloatingPanel {
         </button>
       </nav>
 
-      <!-- CONTENT -->
+      <!-- CONTENT CONTAINER -->
       <div class="als-content">
 
         <!-- ─── ABA PAINEL ─── -->
         <div class="als-pane active" id="als-pane-painel">
 
-          <!-- Status da live -->
+          <!-- Card de Faturamento e Timer -->
           <div class="als-card als-status-card">
             <div class="als-gmv-hero">
               <div class="als-gmv-label">FATURAMENTO DA LIVE</div>
               <div class="als-gmv-value" id="als-gmv-value">R$ 0,00</div>
-              <div class="als-gmv-sub" id="als-gmv-sub">Aguardando métricas do TikTok...</div>
+              <div class="als-gmv-sub" id="als-gmv-sub">Aguardando métricas do TikTok Shop...</div>
             </div>
-            <!-- Timer -->
-            <div class="als-section-label mt8">TEMPO EM LIVE</div>
+
+            <div class="als-section-label mt8">TEMPO EM TRANSMISSÃO</div>
             <div class="flex-row mt4" style="justify-content:center;gap:2px;">
               <div style="text-align:center">
-                <div style="font-size:26px;font-weight:900;color:#5eead4;font-variant-numeric:tabular-nums" id="als-timer-h">00</div>
+                <div style="font-size:24px;font-weight:900;color:#22c55e;font-variant-numeric:tabular-nums" id="als-timer-h">00</div>
                 <div style="font-size:8px;color:#64748b;font-weight:700">H</div>
               </div>
-              <div style="font-size:22px;font-weight:900;color:#2a3f5c;margin-bottom:8px">:</div>
+              <div style="font-size:20px;font-weight:900;color:#2a3f5c;margin-bottom:8px">:</div>
               <div style="text-align:center">
-                <div style="font-size:26px;font-weight:900;color:#5eead4;font-variant-numeric:tabular-nums" id="als-timer-m">00</div>
+                <div style="font-size:24px;font-weight:900;color:#22c55e;font-variant-numeric:tabular-nums" id="als-timer-m">00</div>
                 <div style="font-size:8px;color:#64748b;font-weight:700">MIN</div>
               </div>
-              <div style="font-size:22px;font-weight:900;color:#2a3f5c;margin-bottom:8px">:</div>
+              <div style="font-size:20px;font-weight:900;color:#2a3f5c;margin-bottom:8px">:</div>
               <div style="text-align:center">
-                <div style="font-size:26px;font-weight:900;color:#5eead4;font-variant-numeric:tabular-nums" id="als-timer-s">00</div>
+                <div style="font-size:24px;font-weight:900;color:#22c55e;font-variant-numeric:tabular-nums" id="als-timer-s">00</div>
                 <div style="font-size:8px;color:#64748b;font-weight:700">SEG</div>
               </div>
             </div>
@@ -167,15 +206,15 @@ export class FloatingPanel {
               <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-edit-goal">Editar</button>
             </div>
             <div id="als-goal-content">
-              <div class="als-empty-state" style="padding:8px 0">
+              <div class="als-empty-state" style="padding:6px 0">
                 <div>Sem meta definida</div>
-                <button class="als-btn als-btn-teal als-btn-xs mt6" id="als-btn-set-goal">+ Definir meta</button>
+                <button class="als-btn als-btn-green als-btn-xs mt6" id="als-btn-set-goal">+ Definir meta</button>
               </div>
             </div>
           </div>
 
-          <!-- Métricas -->
-          <div class="als-section-label">MÉTRICAS</div>
+          <!-- Grid de Métricas -->
+          <div class="als-section-label">MÉTRICAS DA SESSÃO</div>
           <div class="als-metrics-grid">
             <div class="als-metric">
               <div class="als-metric-label">VENDAS</div>
@@ -189,27 +228,26 @@ export class FloatingPanel {
             </div>
             <div class="als-metric">
               <div class="als-metric-label">VENDAS/H</div>
-              <div class="als-metric-value" id="als-metric-sph">0</div>
+              <div class="als-metric-value" id="als-metric-sph">0.0</div>
               <div class="als-metric-sub">por hora</div>
             </div>
             <div class="als-metric">
-              <div class="als-metric-label">ASSISTINDO</div>
+              <div class="als-metric-label">ESPECTADORES</div>
               <div class="als-metric-value" id="als-metric-viewers">—</div>
               <div class="als-metric-sub">ao vivo</div>
             </div>
           </div>
 
-          <!-- Feed de vendas -->
+          <!-- Feed de Vendas Recentes -->
           <div class="als-card">
             <div class="flex-between mb4">
-              <div class="als-card-title">🛍 Vendas recentes</div>
+              <div class="als-card-title">🛍 Vendas Recentes</div>
               <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-clear-sales">Limpar</button>
             </div>
             <div class="als-sales-feed" id="als-sales-feed">
               <div class="als-empty-state">
                 <div class="als-empty-icon">🛒</div>
-                <div>Aguardando vendas...</div>
-                <div class="text-muted">As vendas aparecerão aqui</div>
+                <div>Aguardando vendas do TikTok...</div>
               </div>
             </div>
           </div>
@@ -219,12 +257,12 @@ export class FloatingPanel {
         <!-- ─── ABA AUTOMAÇÃO ─── -->
         <div class="als-pane" id="als-pane-automacao">
 
-          <!-- Fixação automática -->
+          <!-- Fixação Automática -->
           <div class="als-card">
             <div class="als-card-header">
               <div>
-                <div class="als-card-title">📌 Fixação automática</div>
-                <div class="als-card-desc">Mantém o produto fixado na live automaticamente.</div>
+                <div class="als-card-title">📌 Fixação Automática</div>
+                <div class="als-card-desc">Mantém o produto selecionado fixado no topo da transmissão.</div>
               </div>
               <label class="als-toggle">
                 <input type="checkbox" id="als-toggle-auto-pin" />
@@ -233,10 +271,10 @@ export class FloatingPanel {
             </div>
             <div class="als-collapsible" id="als-auto-pin-form">
               <div class="als-form-group mt6">
-                <label class="als-form-label">Produto</label>
+                <label class="als-form-label">Produto para fixar</label>
                 <div class="als-select-wrap">
                   <select class="als-select" id="als-pin-product-select">
-                    <option value="">Selecionar produto...</option>
+                    <option value="">Selecione um produto...</option>
                   </select>
                 </div>
               </div>
@@ -250,12 +288,12 @@ export class FloatingPanel {
             </div>
           </div>
 
-          <!-- Mensagens automáticas -->
+          <!-- Mensagens Automáticas -->
           <div class="als-card">
             <div class="als-card-header">
               <div>
-                <div class="als-card-title">💬 Mensagens automáticas</div>
-                <div class="als-card-desc">Posta suas mensagens no chat de tempo em tempo.</div>
+                <div class="als-card-title">💬 Mensagens Automáticas</div>
+                <div class="als-card-desc">Dispara comentários no chat da LIVE periodicamente.</div>
               </div>
               <label class="als-toggle">
                 <input type="checkbox" id="als-toggle-auto-msg" />
@@ -267,7 +305,7 @@ export class FloatingPanel {
                 <div class="flex-between mb4">
                   <label class="als-form-label">Intervalo: <strong id="als-msg-interval-label">60s – 180s</strong></label>
                   <label class="als-toggle als-toggle-sm" title="Ordem aleatória">
-                    <input type="checkbox" id="als-toggle-msg-random" />
+                    <input type="checkbox" id="als-toggle-msg-random" checked />
                     <span class="als-toggle-slider"></span>
                   </label>
                 </div>
@@ -275,19 +313,19 @@ export class FloatingPanel {
                 <input type="range" class="als-range mt4" id="als-msg-max-slider" min="10" max="600" value="180" step="5" />
               </div>
               <div class="als-input-row mt6">
-                <input type="text" class="als-input" id="als-chat-msg-input" placeholder="Escreva uma mensagem…" maxlength="150" style="flex:1" />
-                <button class="als-btn als-btn-teal als-btn-xs" id="als-btn-save-msg">+</button>
+                <input type="text" class="als-input" id="als-chat-msg-input" placeholder="Digite uma mensagem para o chat…" maxlength="150" style="flex:1" />
+                <button class="als-btn als-btn-green als-btn-xs" id="als-btn-save-msg">+</button>
               </div>
               <div class="als-msg-list mt6" id="als-msg-list"></div>
             </div>
           </div>
 
-          <!-- Respostas automáticas -->
+          <!-- Respostas Automáticas -->
           <div class="als-card">
             <div class="als-card-header">
               <div>
-                <div class="als-card-title">🤖 Respostas automáticas</div>
-                <div class="als-card-desc">Chat → responde sozinho por palavras-chave.</div>
+                <div class="als-card-title">🤖 Respostas Automáticas</div>
+                <div class="als-card-desc">Responde perguntas do chat por palavras-chave.</div>
               </div>
               <label class="als-toggle">
                 <input type="checkbox" id="als-toggle-auto-reply" />
@@ -298,23 +336,23 @@ export class FloatingPanel {
               <div class="als-toggle-row mt4">
                 <div>
                   <div class="als-toggle-row-label">Chamar pelo nome</div>
-                  <div class="als-toggle-row-desc">Inclui o @nome de quem perguntou</div>
+                  <div class="als-toggle-row-desc">Menciona o usuário que fez a pergunta</div>
                 </div>
                 <label class="als-toggle als-toggle-sm">
-                  <input type="checkbox" id="als-toggle-reply-name" />
+                  <input type="checkbox" id="als-toggle-reply-name" checked />
                   <span class="als-toggle-slider"></span>
                 </label>
               </div>
-              <button class="als-btn als-btn-teal als-btn-sm w-full mt6" id="als-btn-new-reply">+ Nova regra</button>
+              <button class="als-btn als-btn-green als-btn-sm w-full mt6" id="als-btn-new-reply">+ Nova Regra</button>
               <div id="als-reply-form-wrap" style="display:none" class="als-card-sub">
                 <div class="als-form-group">
                   <label class="als-form-label">Gatilhos (palavras-chave)</label>
-                  <input type="text" class="als-input" id="als-reply-triggers" placeholder="ex: cor, tamanho, preço" />
+                  <input type="text" class="als-input" id="als-reply-triggers" placeholder="ex: tamanho, pronta entrega, frete" />
                   <div class="als-form-hint">Separe por vírgula</div>
                 </div>
                 <div class="als-form-group">
                   <label class="als-form-label">Resposta</label>
-                  <textarea class="als-textarea" id="als-reply-text" placeholder="ex: Disponível em P, M e G"></textarea>
+                  <textarea class="als-textarea" id="als-reply-text" placeholder="ex: Sim! Temos todos os tamanhos disponíveis na sacola."></textarea>
                 </div>
                 <div class="flex-row mt6" style="justify-content:flex-end">
                   <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-cancel-reply">Cancelar</button>
@@ -325,20 +363,6 @@ export class FloatingPanel {
             </div>
           </div>
 
-          <!-- Oferta relâmpago -->
-          <div class="als-card">
-            <div class="als-card-header">
-              <div>
-                <div class="als-card-title">⚡ Oferta relâmpago automática</div>
-                <div class="als-card-desc">Recria a oferta relâmpago quando expira.</div>
-              </div>
-              <label class="als-toggle">
-                <input type="checkbox" id="als-toggle-flash-deal" />
-                <span class="als-toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-
         </div>
 
         <!-- ─── ABA PRODUTOS ─── -->
@@ -346,38 +370,38 @@ export class FloatingPanel {
 
           <div class="als-card">
             <div class="flex-between mb6">
-              <div class="als-card-title">📦 Produtos da live</div>
-              <button class="als-btn als-btn-teal als-btn-xs" id="als-btn-refresh-products">🔄 Atualizar</button>
+              <div class="als-card-title">📦 Catálogo da LIVE</div>
+              <button class="als-btn als-btn-green als-btn-xs" id="als-btn-refresh-products">🔄 Atualizar</button>
             </div>
             <div id="als-product-list-wrap">
               <div class="als-empty-state">
                 <div class="als-empty-icon">📦</div>
-                <div>Nenhum produto carregado</div>
-                <div class="text-muted">Clique em Atualizar</div>
+                <div>Nenhum produto sincronizado</div>
+                <div class="text-muted">Clique em Atualizar para ler os produtos da LIVE</div>
               </div>
             </div>
           </div>
 
-          <!-- Fixar produto manual -->
+          <!-- Fixação Manual -->
           <div class="als-card">
-            <div class="als-card-title mb4">📌 Fixar produto</div>
+            <div class="als-card-title mb4">📌 Fixação Manual</div>
             <div class="als-form-group">
               <div class="als-select-wrap">
                 <select class="als-select" id="als-manual-pin-select">
-                  <option value="">Selecionar produto...</option>
+                  <option value="">Selecione o produto...</option>
                 </select>
               </div>
             </div>
             <div class="flex-row mt6">
-              <button class="als-btn als-btn-green als-btn-sm" style="flex:1" id="als-btn-pin-now">📌 Fixar agora</button>
+              <button class="als-btn als-btn-green als-btn-sm" style="flex:1" id="als-btn-pin-now">📌 Fixar Agora</button>
               <button class="als-btn als-btn-ghost als-btn-sm" id="als-btn-unpin">Desafixar</button>
             </div>
             <div class="text-muted mt4" id="als-pin-status"></div>
           </div>
 
-          <!-- Produto fixado atual -->
+          <!-- Produto Fixado Atual -->
           <div class="als-card" id="als-pinned-card" style="display:none">
-            <div class="als-card-title mb4 text-green">✅ Produto fixado agora</div>
+            <div class="als-card-title mb4 text-green">✅ Produto Fixado na LIVE</div>
             <div id="als-pinned-info"></div>
           </div>
 
@@ -389,321 +413,258 @@ export class FloatingPanel {
           <!-- Licença -->
           <div class="als-card als-license-card">
             <div class="flex-between mb6">
-              <div class="als-card-title">🔑 Licença</div>
+              <div class="als-card-title">🔑 Plano & Licença</div>
               <span class="als-badge als-badge-free" id="als-license-badge">FREE</span>
             </div>
             <div class="als-input-eye-wrap">
-              <input type="password" class="als-input" id="als-license-key" placeholder="XXXX-XXXX-XXXX-XXXX" />
+              <input type="password" class="als-input" id="als-license-key" placeholder="CHAVE-LICENCA" />
               <button class="als-eye-btn" id="als-btn-eye">👁</button>
             </div>
             <div class="flex-row mt6">
               <button class="als-btn als-btn-green als-btn-sm" id="als-btn-activate-license">✓ Ativar</button>
-              <a href="https://autolive.shop" class="als-link" target="_blank">Assinar Pro — R$49/mês</a>
             </div>
           </div>
 
-          <!-- Som de venda -->
+          <!-- Som de Venda -->
           <div class="als-card">
             <div class="als-toggle-row">
               <div>
-                <div class="als-toggle-row-label">🔊 Som de venda</div>
-                <div class="als-toggle-row-desc">Toca um som a cada nova venda detectada</div>
+                <div class="als-toggle-row-label">🔊 Alerta Sonoro de Venda</div>
+                <div class="als-toggle-row-desc">Toca som a cada venda identificada</div>
               </div>
               <label class="als-toggle">
                 <input type="checkbox" id="als-toggle-sound" />
                 <span class="als-toggle-slider"></span>
               </label>
             </div>
-            <div class="als-collapsible open" id="als-sound-form">
-              <button class="als-btn als-btn-ghost als-btn-xs mt6" id="als-btn-unlock-audio">🔔 Ativar áudio</button>
-              <button class="als-btn als-btn-ghost als-btn-xs mt4" id="als-btn-test-sound">▶ Testar som</button>
+            <div class="flex-row mt6">
+              <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-unlock-audio">🔔 Ativar Áudio</button>
+              <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-test-sound">▶ Testar Som</button>
             </div>
           </div>
 
-          <!-- Guardião anti-ban -->
+          <!-- Posição e Dimensões do Painel -->
           <div class="als-card">
-            <div class="als-card-header">
-              <div>
-                <div class="als-card-title">🛡 Guardião anti-ban</div>
-                <div class="als-card-desc">Protege a conta ao detectar violação.</div>
-              </div>
-              <label class="als-toggle">
-                <input type="checkbox" id="als-toggle-guardian" />
-                <span class="als-toggle-slider"></span>
-              </label>
-            </div>
-            <div class="als-collapsible" id="als-guardian-form">
-              <div class="als-form-group mt6">
-                <label class="als-form-label">Ação ao detectar violação</label>
-                <div class="als-select-wrap">
-                  <select class="als-select" id="als-guardian-action">
-                    <option value="alert">Apenas alertar</option>
-                    <option value="pause">Pausar automações</option>
-                    <option value="end">Encerrar a live</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Notificações -->
-          <div class="als-card">
-            <div class="als-card-title mb6">🔔 Notificações Chrome</div>
-            <div class="als-checkbox-list">
-              <label class="als-checkbox-item">
-                <input type="checkbox" class="als-notif-cb" id="als-notif-sales" checked />
-                <span class="als-checkbox-custom"></span>
-                <span>Nova venda detectada</span>
-              </label>
-              <label class="als-checkbox-item">
-                <input type="checkbox" class="als-notif-cb" id="als-notif-pin" checked />
-                <span class="als-checkbox-custom"></span>
-                <span>Produto fixado</span>
-              </label>
-              <label class="als-checkbox-item">
-                <input type="checkbox" class="als-notif-cb" id="als-notif-guardian" checked />
-                <span class="als-checkbox-custom"></span>
-                <span>Alertas do guardião</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Posição do painel -->
-          <div class="als-card">
-            <div class="als-card-title mb6">📐 Painel</div>
+            <div class="als-card-title mb6">📐 Painel Flutuante</div>
             <div class="flex-row">
-              <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-reset-pos">Restaurar posição</button>
-              <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-reset-size">Restaurar tamanho</button>
+              <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-reset-pos">Restaurar Posição</button>
+              <button class="als-btn als-btn-ghost als-btn-xs" id="als-btn-reset-size">Restaurar Tamanho</button>
             </div>
           </div>
 
-          <div class="als-footer">Auto Live Shop v2.0.0 · Copiloto de Lives</div>
+          <div class="als-footer">${APP_NAME} v${APP_VERSION} · Copiloto de Lives</div>
 
         </div>
 
       </div>
 
-      <!-- TOASTS -->
+      <!-- TOAST NOTIFICATIONS WRAPPER -->
       <div class="als-toasts" id="als-toasts"></div>
     `;
   }
 
-  // ── Bind de eventos ──────────────────────────────────────
   private _bindEvents(): void {
     const $ = (id: string) => this.shadow.getElementById(id);
 
-    // Header
-    $('als-btn-minimize')?.addEventListener('click', () => this._toggleMinimize());
-    $('als-btn-close')?.addEventListener('click', () => this._close());
-
-    // Tabs
-    this.shadow.querySelectorAll('.als-tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const tab = (btn as HTMLElement).dataset['tab']!;
-        this._switchTab(tab);
-      });
-    });
-
-    // ── Painel tab ─────────────────────────────────────────
+    // Live controls
     $('als-btn-start-live')?.addEventListener('click', () => {
-      if (!StateManager.live.startedAt) {
-        StateManager.setLiveStatus('LIVE_ACTIVE');
-        this._startTimer();
-      }
+      this.dashboardMod.startSession();
+      this._startTimer();
     });
+
     $('als-btn-stop-live')?.addEventListener('click', () => {
-      StateManager.setLiveStatus('LIVE_ENDED');
+      this.dashboardMod.endSession();
       this._stopTimer();
     });
-    $('als-btn-clear-sales')?.addEventListener('click', () => {
-      const feed = $('als-sales-feed')!;
-      feed.innerHTML = `<div class="als-empty-state"><div class="als-empty-icon">🛒</div><div>Aguardando vendas...</div></div>`;
-    });
-    $('als-btn-set-goal')?.addEventListener('click', () => this._showGoalEditor());
-    $('als-btn-edit-goal')?.addEventListener('click', () => this._showGoalEditor());
 
-    // ── Automação tab ──────────────────────────────────────
+    $('als-btn-clear-sales')?.addEventListener('click', () => {
+      this.dashboardMod.clearFeed();
+      const feed = $('als-sales-feed')!;
+      feed.innerHTML = `<div class="als-empty-state"><div class="als-empty-icon">🛒</div><div>Aguardando vendas do TikTok...</div></div>`;
+    });
+
+    // Goals
+    $('als-btn-set-goal')?.addEventListener('click', () => this._promptGoal());
+    $('als-btn-edit-goal')?.addEventListener('click', () => this._promptGoal());
+
+    // Auto pin
     $('als-toggle-auto-pin')?.addEventListener('change', async (e) => {
       const on = (e.target as HTMLInputElement).checked;
       this._toggleCollapsible('als-auto-pin-form', on);
-      await StorageManager.saveSettings({ repinInterval: parseInt(($('als-repin-interval') as HTMLInputElement)?.value || '30') });
+
       if (on) {
-        const productId = ($('als-pin-product-select') as HTMLSelectElement)?.value;
-        const interval = parseInt(($('als-repin-interval') as HTMLInputElement)?.value || '30');
-        if (productId) this.automationCtrl.start(productId, interval);
-        else this._showToast('⚠ Selecione um produto primeiro', 'warn');
+        const select = $('als-pin-product-select') as HTMLSelectElement;
+        const intervalInput = $('als-repin-interval') as HTMLInputElement;
+        const interval = parseInt(intervalInput.value || '30', 10);
+        if (select.value) {
+          this.automationMod.startAutoPin(select.value, interval);
+        } else {
+          EventBus.emit('toast:show', { message: '⚠ Selecione um produto na lista', type: 'warn' });
+          (e.target as HTMLInputElement).checked = false;
+          this._toggleCollapsible('als-auto-pin-form', false);
+        }
       } else {
-        this.automationCtrl.stop();
+        this.automationMod.stopAutoPin();
       }
     });
 
-    $('als-toggle-auto-msg')?.addEventListener('change', async (e) => {
-      const on = (e.target as HTMLInputElement).checked;
-      this._toggleCollapsible('als-auto-msg-form', on);
-      await StorageManager.saveSettings({ /* autoMsgEnabled */ });
+    // Auto messages
+    $('als-toggle-auto-msg')?.addEventListener('change', (e) => {
+      this._toggleCollapsible('als-auto-msg-form', (e.target as HTMLInputElement).checked);
     });
 
-    $('als-msg-min-slider')?.addEventListener('input', () => this._updateMsgIntervalLabel());
-    $('als-msg-max-slider')?.addEventListener('input', () => this._updateMsgIntervalLabel());
+    $('als-btn-save-msg')?.addEventListener('click', async () => {
+      const input = $('als-chat-msg-input') as HTMLInputElement;
+      const text = input.value.trim();
+      if (!text) return;
+      const messages = await this.automationMod.addChatMessage(text);
+      input.value = '';
+      this._renderMessages(messages);
+    });
 
-    $('als-btn-save-msg')?.addEventListener('click', () => this._saveChatMessage());
-
+    // Auto replies
     $('als-toggle-auto-reply')?.addEventListener('change', (e) => {
       this._toggleCollapsible('als-auto-reply-form', (e.target as HTMLInputElement).checked);
     });
+
     $('als-btn-new-reply')?.addEventListener('click', () => {
       ($('als-reply-form-wrap') as HTMLElement).style.display = 'block';
     });
+
     $('als-btn-cancel-reply')?.addEventListener('click', () => {
       ($('als-reply-form-wrap') as HTMLElement).style.display = 'none';
       this.editingReplyId = null;
     });
-    $('als-btn-save-reply')?.addEventListener('click', () => this._saveReply());
 
-    // ── Produtos tab ───────────────────────────────────────
-    $('als-btn-refresh-products')?.addEventListener('click', () => this._refreshProducts());
+    $('als-btn-save-reply')?.addEventListener('click', async () => {
+      const triggersInput = $('als-reply-triggers') as HTMLInputElement;
+      const textInput = $('als-reply-text') as HTMLTextAreaElement;
+
+      const triggers = triggersInput.value.split(',').map(t => t.trim()).filter(Boolean);
+      const text = textInput.value.trim();
+
+      if (!triggers.length || !text) {
+        EventBus.emit('toast:show', { message: '⚠ Preencha gatilhos e resposta', type: 'warn' });
+        return;
+      }
+
+      const replies = await this.automationMod.saveAutoResponse({
+        id: this.editingReplyId || Date.now(),
+        triggers,
+        text,
+        scope: 'all',
+        active: true,
+      });
+
+      triggersInput.value = '';
+      textInput.value = '';
+      ($('als-reply-form-wrap') as HTMLElement).style.display = 'none';
+      this.editingReplyId = null;
+      this._renderReplies(replies);
+    });
+
+    // Products
+    $('als-btn-refresh-products')?.addEventListener('click', async () => {
+      const res = await this.productsMod.refreshCatalog();
+      if (!res.success) {
+        EventBus.emit('toast:show', { message: `⚠ ${res.error}`, type: 'warn' });
+      }
+    });
+
     $('als-btn-pin-now')?.addEventListener('click', async () => {
       const select = $('als-manual-pin-select') as HTMLSelectElement;
-      if (!select.value) { this._showToast('⚠ Selecione um produto', 'warn'); return; }
-      ($('als-pin-status') as HTMLElement).textContent = 'Fixando...';
-      const result = await this.productCtrl.pinProduct(select.value);
-      ($('als-pin-status') as HTMLElement).textContent = result.success
-        ? '✅ Produto fixado com sucesso'
-        : `⚠ ${result.error || 'Erro ao fixar'}`;
-    });
-    $('als-btn-unpin')?.addEventListener('click', async () => {
-      const result = await this.productCtrl.unpinProduct();
-      ($('als-pin-status') as HTMLElement).textContent = result.success
-        ? 'Produto desafixado'
-        : `⚠ ${result.error}`;
+      if (!select.value) {
+        EventBus.emit('toast:show', { message: '⚠ Selecione um produto', type: 'warn' });
+        return;
+      }
+      ($('als-pin-status') as HTMLElement).textContent = 'Fixando produto...';
+      const res = await this.productsMod.pin(select.value);
+      ($('als-pin-status') as HTMLElement).textContent = res.success
+        ? '✅ Fixado com sucesso'
+        : `⚠ ${res.error || 'Falha ao fixar'}`;
     });
 
-    // ── Ajustes tab ────────────────────────────────────────
-    $('als-toggle-sound')?.addEventListener('change', async (e) => {
+    $('als-btn-unpin')?.addEventListener('click', async () => {
+      const res = await this.productsMod.unpin();
+      ($('als-pin-status') as HTMLElement).textContent = res.success
+        ? 'Produto desafixado'
+        : `⚠ ${res.error}`;
+    });
+
+    // Audio & Settings
+    $('als-toggle-sound')?.addEventListener('change', (e) => {
       const on = (e.target as HTMLInputElement).checked;
       this.audioMgr.setEnabled(on);
-      await StorageManager.saveSettings({ soundEnabled: on });
+      this.settingsMod.updateSettings({ salesSoundEnabled: on, soundEnabled: on });
     });
+
     $('als-btn-unlock-audio')?.addEventListener('click', async () => {
       await this.audioMgr.unlock();
-      this._showToast('🔊 Áudio ativado!', 'success');
+      EventBus.emit('toast:show', { message: '🔊 Áudio desbloqueado', type: 'success' });
     });
+
     $('als-btn-test-sound')?.addEventListener('click', () => this.audioMgr.playSaleSound());
 
-    $('als-toggle-guardian')?.addEventListener('change', (e) => {
-      this._toggleCollapsible('als-guardian-form', (e.target as HTMLInputElement).checked);
-    });
+    $('als-btn-reset-pos')?.addEventListener('click', () => this.positionMgr.resetPosition());
+    $('als-btn-reset-size')?.addEventListener('click', () => this.positionMgr.resetSize());
 
-    $('als-btn-activate-license')?.addEventListener('click', () => this._activateLicense());
+    // License
+    $('als-btn-activate-license')?.addEventListener('click', async () => {
+      const key = ($('als-license-key') as HTMLInputElement).value.trim();
+      const res = await this.settingsMod.activateLicense(key);
+      const badge = $('als-license-badge')!;
+      badge.className = `als-badge als-badge-${res.status.toLowerCase()}`;
+      badge.textContent = res.status;
+      EventBus.emit('toast:show', {
+        message: res.message,
+        type: res.valid ? 'success' : 'warn',
+      });
+    });
 
     $('als-btn-eye')?.addEventListener('click', () => {
       const input = $('als-license-key') as HTMLInputElement;
       input.type = input.type === 'password' ? 'text' : 'password';
     });
-
-    $('als-btn-reset-pos')?.addEventListener('click', () => {
-      this.panel.style.setProperty('--als-x', `${DEFAULTS.PANEL_X}px`);
-      this.panel.style.setProperty('--als-y', `${DEFAULTS.PANEL_Y}px`);
-      StorageManager.savePanelState({ x: DEFAULTS.PANEL_X, y: DEFAULTS.PANEL_Y });
-    });
-    $('als-btn-reset-size')?.addEventListener('click', () => {
-      this.panel.style.setProperty('--als-w', `${DEFAULTS.PANEL_WIDTH}px`);
-      this.panel.style.setProperty('--als-h', `${DEFAULTS.PANEL_HEIGHT}px`);
-      StorageManager.savePanelState({ width: DEFAULTS.PANEL_WIDTH, height: DEFAULTS.PANEL_HEIGHT });
-    });
-
-    // Salvar config de notificações
-    this.shadow.querySelectorAll('.als-notif-cb').forEach(cb => {
-      cb.addEventListener('change', () => this._saveNotificationSettings());
-    });
   }
 
-  // ── Drag ─────────────────────────────────────────────────
-  private _bindDrag(): void {
-    const handle = this.shadow.getElementById('als-drag-handle')!;
-
-    handle.addEventListener('mousedown', (e) => {
-      if ((e.target as HTMLElement).closest('.als-icon-btn')) return;
-      const rect = this.panel.getBoundingClientRect();
-      this.drag = { dragging: true, startX: e.clientX, startY: e.clientY, startLeft: rect.left, startTop: rect.top };
-      document.addEventListener('mousemove', this._onDragMove);
-      document.addEventListener('mouseup', this._onDragEnd);
-    });
-  }
-
-  private _onDragMove = (e: MouseEvent) => {
-    if (!this.drag.dragging) return;
-    const dx = e.clientX - this.drag.startX;
-    const dy = e.clientY - this.drag.startY;
-    const x = clamp(this.drag.startLeft + dx, 0, window.innerWidth - 100);
-    const y = clamp(this.drag.startTop + dy, 0, window.innerHeight - 48);
-    this.panel.style.setProperty('--als-x', `${x}px`);
-    this.panel.style.setProperty('--als-y', `${y}px`);
-  };
-
-  private _onDragEnd = () => {
-    this.drag.dragging = false;
-    document.removeEventListener('mousemove', this._onDragMove);
-    document.removeEventListener('mouseup', this._onDragEnd);
-    const x = parseFloat(this.panel.style.getPropertyValue('--als-x'));
-    const y = parseFloat(this.panel.style.getPropertyValue('--als-y'));
-    StorageManager.savePanelState({ x, y });
-  };
-
-  // ── Subscriptions ao estado ──────────────────────────────
-  private _subscribeToState(): void {
-    EventBus.on('live:status_changed', (status) => this._updateStatusBadge(status));
-    EventBus.on('metrics:updated', (metrics) => this._renderMetrics(metrics));
-    EventBus.on('sale:detected', (sale) => this._addSaleToFeed(sale));
-    EventBus.on('products:loaded', (products) => this._renderProductList(products));
+  private _subscribeEvents(): void {
+    EventBus.on('metrics:updated', (metrics: LiveMetrics) => this._renderMetrics(metrics));
+    EventBus.on('sale:detected', (sale: Sale) => this._addSaleToFeed(sale));
+    EventBus.on('products:loaded', (products: LiveProduct[]) => this._renderProductList(products));
+    EventBus.on('products:updated', (products: LiveProduct[]) => this._renderProductList(products));
     EventBus.on('products:pinned', ({ productId }) => this._updatePinnedDisplay(productId));
     EventBus.on('products:unpinned', () => {
       (this.shadow.getElementById('als-pinned-card') as HTMLElement).style.display = 'none';
     });
-    EventBus.on('toast:show', ({ message, type }) => this._showToast(message, type));
-    EventBus.on('automation:started', () => {
-      (this.shadow.getElementById('als-toggle-auto-pin') as HTMLInputElement).checked = true;
-    });
     EventBus.on('automation:stopped', () => {
-      (this.shadow.getElementById('als-toggle-auto-pin') as HTMLInputElement).checked = false;
+      const toggle = this.shadow.getElementById('als-toggle-auto-pin') as HTMLInputElement;
+      if (toggle) toggle.checked = false;
       this._toggleCollapsible('als-auto-pin-form', false);
     });
   }
 
-  // ── Status badge ─────────────────────────────────────────
-  private _updateStatusBadge(status: LiveStatus): void {
-    const badge = this.shadow.getElementById('als-status-badge')!;
-    const text  = this.shadow.getElementById('als-status-text')!;
-    badge.className = 'als-live-badge';
-    const map: Record<LiveStatus, { cls: string; label: string }> = {
-      LIVE_DETECTING: { cls: 'detecting', label: 'DETECTANDO' },
-      LIVE_ACTIVE:    { cls: 'active',    label: 'AO VIVO' },
-      LIVE_INACTIVE:  { cls: 'inactive',  label: 'AGUARDANDO' },
-      LIVE_ENDED:     { cls: 'ended',     label: 'ENCERRADA' },
-      LIVE_ERROR:     { cls: 'error',     label: 'ERRO' },
-    };
-    badge.classList.add(map[status].cls);
-    text.textContent = map[status].label;
-  }
-
-  // ── Métricas ─────────────────────────────────────────────
   private _renderMetrics(metrics: LiveMetrics): void {
     const $ = (id: string) => this.shadow.getElementById(id);
-    ($('als-gmv-value') as HTMLElement).textContent = formatBRL(metrics.gmv);
-    ($('als-gmv-sub') as HTMLElement).textContent = metrics.source === 'tiktok'
-      ? `Atualizado: ${new Date(metrics.updatedAt).toLocaleTimeString('pt-BR')}`
-      : 'Calculado localmente';
-    ($('als-metric-sales') as HTMLElement).textContent = String(metrics.salesCount);
-    ($('als-metric-items') as HTMLElement).textContent = String(metrics.soldItems);
-    ($('als-metric-sph') as HTMLElement).textContent = metrics.salesPerHour.toFixed(1);
-    if (metrics.viewers > 0) ($('als-metric-viewers') as HTMLElement).textContent = String(metrics.viewers);
+    const gmvEl = $('als-gmv-value');
+    if (gmvEl) gmvEl.textContent = formatCurrency(metrics.gmv);
 
-    // Meta de GMV
-    const goal = StateManager.settings.gmvGoal;
-    if (goal) this._updateGoalProgress(metrics.gmv, goal);
+    const subEl = $('als-gmv-sub');
+    if (subEl) {
+      subEl.textContent = metrics.source === 'tiktok'
+        ? `Atualizado: ${new Date(metrics.updatedAt).toLocaleTimeString('pt-BR')}`
+        : 'Calculado localmente';
+    }
+
+    const salesEl = $('als-metric-sales'); if (salesEl) salesEl.textContent = String(metrics.salesCount);
+    const itemsEl = $('als-metric-items'); if (itemsEl) itemsEl.textContent = String(metrics.soldItems);
+    const sphEl = $('als-metric-sph'); if (sphEl) sphEl.textContent = metrics.salesPerHour.toFixed(1);
+    const viewersEl = $('als-metric-viewers');
+    if (viewersEl && metrics.viewers > 0) viewersEl.textContent = String(metrics.viewers);
+
+    // Atualiza progresso da meta
+    this._renderGoal();
   }
 
-  // ── Feed de vendas ────────────────────────────────────────
   private _addSaleToFeed(sale: Sale): void {
     const feed = this.shadow.getElementById('als-sales-feed')!;
     const empty = feed.querySelector('.als-empty-state');
@@ -716,18 +677,13 @@ export class FloatingPanel {
         <div class="als-sale-name">🛍 ${escHtml(sale.productName || 'Produto')}</div>
         <div class="als-sale-meta">${formatRelativeTime(sale.timestamp)}</div>
       </div>
-      <div class="als-sale-amount">${sale.amount ? formatBRL(sale.amount) : '—'}</div>
+      <div class="als-sale-amount">${sale.amount ? formatCurrency(sale.amount) : '—'}</div>
     `;
+
     feed.insertBefore(item, feed.firstChild);
 
-    if (this.audioMgr.isEnabled()) this.audioMgr.playSaleSound();
-  }
-
-  // ── Produtos ──────────────────────────────────────────────
-  private _refreshProducts(): void {
-    const result = this.productCtrl.refreshProducts();
-    if (!result.success) {
-      this._showToast('⚠ ' + result.error, 'warn');
+    if (this.audioMgr.isEnabled()) {
+      this.audioMgr.playSaleSound();
     }
   }
 
@@ -737,21 +693,21 @@ export class FloatingPanel {
     const autoPinSelect = this.shadow.getElementById('als-pin-product-select') as HTMLSelectElement;
 
     if (!products.length) {
-      wrap.innerHTML = `<div class="als-empty-state"><div class="als-empty-icon">📦</div><div>Nenhum produto encontrado</div><div class="text-muted">Verifique se a live está ativa</div></div>`;
+      wrap.innerHTML = `<div class="als-empty-state"><div class="als-empty-icon">📦</div><div>Nenhum produto encontrado</div></div>`;
       return;
     }
 
-    // Lista visual
     const list = document.createElement('div');
     list.className = 'als-product-list';
+
     products.forEach(p => {
       const item = document.createElement('div');
-      item.className = 'als-product-item' + (p.isPinned ? ' pinned' : '');
+      item.className = `als-product-item ${p.isPinned ? 'pinned' : ''}`;
       item.innerHTML = `
         ${p.isPinned ? '<span class="als-product-pin-badge">📌</span>' : ''}
         <div class="als-product-info">
           <div class="als-product-name">${escHtml(p.name)}</div>
-          <div class="als-product-price">${p.price ? formatBRL(p.price) : '—'}</div>
+          <div class="als-product-price">${p.price ? formatCurrency(p.price) : '—'}</div>
         </div>
         <div class="als-product-actions">
           <button class="als-btn als-btn-xs ${p.isPinned ? 'als-btn-ghost' : 'als-btn-green'}" data-pin-id="${p.id}">
@@ -759,271 +715,183 @@ export class FloatingPanel {
           </button>
         </div>
       `;
+
       item.querySelector(`[data-pin-id]`)?.addEventListener('click', async () => {
-        if (p.isPinned) { await this.productCtrl.unpinProduct(); }
-        else            { await this.productCtrl.pinProduct(p.id); }
+        if (p.isPinned) await this.productsMod.unpin();
+        else await this.productsMod.pin(p.id);
       });
+
       list.appendChild(item);
     });
+
     wrap.innerHTML = '';
     wrap.appendChild(list);
 
-    // Selects
-    const opts = `<option value="">Selecionar...</option>` +
+    const optionsHtml = '<option value="">Selecione o produto...</option>' +
       products.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
-    manualSelect.innerHTML = opts;
-    autoPinSelect.innerHTML = opts;
+
+    manualSelect.innerHTML = optionsHtml;
+    autoPinSelect.innerHTML = optionsHtml;
   }
 
   private _updatePinnedDisplay(productId: string): void {
     const card = this.shadow.getElementById('als-pinned-card') as HTMLElement;
     const info = this.shadow.getElementById('als-pinned-info')!;
-    const product = StateManager.live.products.find(p => p.id === productId);
+    const product = StateManager.products.find(p => p.id === productId);
+
     if (product) {
       card.style.display = 'block';
       info.innerHTML = `
         <div class="als-product-name">${escHtml(product.name)}</div>
-        ${product.price ? `<div class="als-product-price">${formatBRL(product.price)}</div>` : ''}
+        ${product.price ? `<div class="als-product-price">${formatCurrency(product.price)}</div>` : ''}
       `;
     }
   }
 
-  // ── Timer ─────────────────────────────────────────────────
+  private async _promptGoal(): Promise<void> {
+    const current = StateManager.settings.gmvGoal;
+    const input = window.prompt('Definir Meta de GMV (R$):', current ? String(current) : '');
+    if (input === null) return;
+
+    const amount = parseFloat(input.replace(/\./g, '').replace(',', '.'));
+    if (isNaN(amount) || amount <= 0) {
+      EventBus.emit('toast:show', { message: '⚠ Valor de meta inválido', type: 'warn' });
+      return;
+    }
+
+    await this.goalsMod.setGoal(amount);
+    this._renderGoal();
+  }
+
+  private _renderGoal(): void {
+    const status = this.goalsMod.getGoalStatus();
+    const content = this.shadow.getElementById('als-goal-content')!;
+
+    if (!status.goal) {
+      content.innerHTML = `
+        <div class="als-empty-state" style="padding:6px 0">
+          <div>Sem meta definida</div>
+          <button class="als-btn als-btn-green als-btn-xs mt6" id="als-btn-set-goal">+ Definir meta</button>
+        </div>
+      `;
+      content.querySelector('#als-btn-set-goal')?.addEventListener('click', () => this._promptGoal());
+      return;
+    }
+
+    content.innerHTML = `
+      <div class="als-progress-wrap">
+        <div class="als-progress-labels">
+          <span class="text-green bold">${formatCurrency(status.currentGmv)}</span>
+          <span class="text-muted">${formatCurrency(status.goal)}</span>
+        </div>
+        <div class="als-progress-track">
+          <div class="als-progress-fill" style="width: ${status.percentage}%"></div>
+        </div>
+        <div class="flex-between mt4">
+          <span class="text-muted">${status.percentage}% atingido</span>
+          <span class="text-muted">Faltam ${formatCurrency(status.remaining)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderMessages(messages: { id: number; text: string; active: boolean }[]): void {
+    const list = this.shadow.getElementById('als-msg-list')!;
+    list.innerHTML = '';
+    messages.forEach(m => {
+      const div = document.createElement('div');
+      div.className = `als-msg-item ${m.active ? 'active-item' : ''}`;
+      div.innerHTML = `
+        <span class="als-msg-text">${escHtml(m.text)}</span>
+        <div class="als-msg-actions">
+          <button class="als-icon-btn-xs danger" data-del-msg="${m.id}">🗑</button>
+        </div>
+      `;
+      div.querySelector('[data-del-msg]')?.addEventListener('click', async () => {
+        const updated = await this.automationMod.removeChatMessage(m.id);
+        this._renderMessages(updated);
+      });
+      list.appendChild(div);
+    });
+  }
+
+  private _renderReplies(replies: { id: number; triggers: string[]; text: string; active: boolean }[]): void {
+    const list = this.shadow.getElementById('als-reply-list')!;
+    list.innerHTML = '';
+    replies.forEach(r => {
+      const div = document.createElement('div');
+      div.className = `als-msg-item ${r.active ? 'active-item' : ''}`;
+      div.innerHTML = `
+        <div style="flex:1;min-width:0">
+          <div class="als-tags">${r.triggers.map(t => `<span class="als-tag">${escHtml(t)}</span>`).join('')}</div>
+          <div class="als-msg-text mt4">"${escHtml(r.text)}"</div>
+        </div>
+        <div class="als-msg-actions">
+          <button class="als-icon-btn-xs danger" data-del-reply="${r.id}">🗑</button>
+        </div>
+      `;
+      div.querySelector('[data-del-reply]')?.addEventListener('click', async () => {
+        const updated = await this.automationMod.removeAutoResponse(r.id);
+        this._renderReplies(updated);
+      });
+      list.appendChild(div);
+    });
+  }
+
   private _startTimer(): void {
     if (this.timerInterval) return;
     this.timerInterval = setInterval(() => {
       const startedAt = StateManager.live.startedAt;
       if (!startedAt) return;
+
       const ms = Date.now() - startedAt;
       const s = Math.floor(ms / 1000);
       const h = Math.floor(s / 3600);
       const m = Math.floor((s % 3600) / 60);
       const sec = s % 60;
       const pad = (n: number) => String(n).padStart(2, '0');
-      const $ = (id: string) => this.shadow.getElementById(id);
-      const hEl = $('als-timer-h'); if (hEl) hEl.textContent = pad(h);
-      const mEl = $('als-timer-m'); if (mEl) mEl.textContent = pad(m);
-      const sEl = $('als-timer-s'); if (sEl) sEl.textContent = pad(sec);
+
+      const hEl = this.shadow.getElementById('als-timer-h');
+      const mEl = this.shadow.getElementById('als-timer-m');
+      const sEl = this.shadow.getElementById('als-timer-s');
+
+      if (hEl) hEl.textContent = pad(h);
+      if (mEl) mEl.textContent = pad(m);
+      if (sEl) sEl.textContent = pad(sec);
     }, 1000);
   }
 
   private _stopTimer(): void {
-    if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
-  }
-
-  // ── Mensagens / Respostas ─────────────────────────────────
-  private async _saveChatMessage(): Promise<void> {
-    const input = this.shadow.getElementById('als-chat-msg-input') as HTMLInputElement;
-    const text = input.value.trim();
-    if (!text) { this._showToast('⚠ Escreva uma mensagem', 'warn'); return; }
-    const settings = await StorageManager.getSettings();
-    const messages = settings.chatMessages || [];
-    messages.push({ id: Date.now(), text, active: true });
-    await StorageManager.saveSettings({ chatMessages: messages });
-    input.value = '';
-    this._renderMsgList(messages);
-    this._showToast('✓ Mensagem salva', 'success');
-  }
-
-  private _renderMsgList(messages: { id: number; text: string; active: boolean }[]): void {
-    const list = this.shadow.getElementById('als-msg-list')!;
-    list.innerHTML = '';
-    if (!messages.length) { list.innerHTML = '<div class="text-muted" style="text-align:center;padding:8px 0">Nenhuma mensagem</div>'; return; }
-    messages.forEach(msg => {
-      const item = document.createElement('div');
-      item.className = 'als-msg-item' + (msg.active ? ' active-item' : '');
-      item.innerHTML = `
-        <span class="als-msg-text">${escHtml(msg.text)}</span>
-        <div class="als-msg-actions">
-          <label class="als-toggle als-toggle-sm"><input type="checkbox" ${msg.active ? 'checked' : ''} /><span class="als-toggle-slider"></span></label>
-          <button class="als-icon-btn-xs danger" data-del-id="${msg.id}">🗑</button>
-        </div>
-      `;
-      item.querySelector(`[data-del-id]`)?.addEventListener('click', async () => {
-        const s = await StorageManager.getSettings();
-        const msgs = (s.chatMessages || []).filter(m => m.id !== msg.id);
-        await StorageManager.saveSettings({ chatMessages: msgs });
-        this._renderMsgList(msgs);
-      });
-      list.appendChild(item);
-    });
-  }
-
-  private async _saveReply(): Promise<void> {
-    const triggers = (this.shadow.getElementById('als-reply-triggers') as HTMLInputElement).value
-      .split(',').map(t => t.trim()).filter(Boolean);
-    const text = (this.shadow.getElementById('als-reply-text') as HTMLTextAreaElement).value.trim();
-    if (!triggers.length || !text) { this._showToast('⚠ Preencha gatilhos e resposta', 'warn'); return; }
-    const settings = await StorageManager.getSettings();
-    let replies = settings.autoResponses || [];
-    if (this.editingReplyId) {
-      replies = replies.map(r => r.id === this.editingReplyId ? { ...r, triggers, text } : r);
-    } else {
-      replies.push({ id: Date.now(), triggers, text, scope: 'all', active: true });
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
     }
-    await StorageManager.saveSettings({ autoResponses: replies });
-    (this.shadow.getElementById('als-reply-form-wrap') as HTMLElement).style.display = 'none';
-    this.editingReplyId = null;
-    this._renderReplyList(replies);
-    this._showToast('✓ Regra salva', 'success');
-  }
-
-  private _renderReplyList(replies: { id: number; triggers: string[]; text: string; active: boolean }[]): void {
-    const list = this.shadow.getElementById('als-reply-list')!;
-    list.innerHTML = '';
-    if (!replies.length) { list.innerHTML = '<div class="text-muted" style="text-align:center;padding:8px 0">Nenhuma regra</div>'; return; }
-    replies.forEach(r => {
-      const item = document.createElement('div');
-      item.className = 'als-msg-item' + (r.active ? ' active-item' : '');
-      item.innerHTML = `
-        <div style="flex:1;min-width:0">
-          <div class="als-tags">${r.triggers.map(t => `<span class="als-tag">${escHtml(t)}</span>`).join('')}</div>
-          <div class="als-msg-text mt4">"${escHtml(r.text)}"</div>
-        </div>
-        <div class="als-msg-actions">
-          <label class="als-toggle als-toggle-sm"><input type="checkbox" ${r.active ? 'checked' : ''} /><span class="als-toggle-slider"></span></label>
-          <button class="als-icon-btn-xs danger" data-del-reply="${r.id}">🗑</button>
-        </div>
-      `;
-      item.querySelector(`[data-del-reply]`)?.addEventListener('click', async () => {
-        const s = await StorageManager.getSettings();
-        const rs = (s.autoResponses || []).filter(x => x.id !== r.id);
-        await StorageManager.saveSettings({ autoResponses: rs });
-        this._renderReplyList(rs);
-      });
-      list.appendChild(item);
-    });
-  }
-
-  // ── Meta de GMV ───────────────────────────────────────────
-  private async _showGoalEditor(): Promise<void> {
-    const goal = window.prompt('Digite a meta de GMV (R$):', String(StateManager.settings.gmvGoal || ''));
-    if (goal === null) return;
-    const value = parseFloat(goal.replace(',', '.'));
-    if (isNaN(value) || value <= 0) { this._showToast('⚠ Meta inválida', 'warn'); return; }
-    StateManager.patchSettings({ gmvGoal: value });
-    await StorageManager.saveSettings({ gmvGoal: value });
-    this._updateGoalProgress(StateManager.live.metrics.gmv, value);
-    this._showToast(`🎯 Meta: ${formatBRL(value)}`, 'success');
-  }
-
-  private _updateGoalProgress(current: number, goal: number): void {
-    const pct = Math.min(100, Math.round((current / goal) * 100));
-    const remaining = Math.max(0, goal - current);
-    const content = this.shadow.getElementById('als-goal-content')!;
-    content.innerHTML = `
-      <div class="als-progress-wrap">
-        <div class="als-progress-labels">
-          <span class="text-green bold">${formatBRL(current)}</span>
-          <span class="text-muted">${formatBRL(goal)}</span>
-        </div>
-        <div class="als-progress-track">
-          <div class="als-progress-fill" style="width:${pct}%"></div>
-        </div>
-        <div class="flex-between mt4">
-          <span class="text-muted">${pct}% atingido</span>
-          <span class="text-muted">Faltam ${formatBRL(remaining)}</span>
-        </div>
-      </div>
-    `;
-    if (pct >= 100) {
-      this._showToast('🏆 Meta de GMV atingida!', 'success');
-    }
-  }
-
-  // ── License ───────────────────────────────────────────────
-  private async _activateLicense(): Promise<void> {
-    const key = (this.shadow.getElementById('als-license-key') as HTMLInputElement).value.trim();
-    if (!key) { this._showToast('⚠ Digite a chave', 'warn'); return; }
-    const result = await this.licenseMgr.validate(key);
-    const badge = this.shadow.getElementById('als-license-badge')!;
-    badge.className = `als-badge als-badge-${result.status.toLowerCase()}`;
-    badge.textContent = result.status;
-    await StorageManager.saveSettings({ licenseKey: key, licenseStatus: result.status });
-    this._showToast(result.valid ? `✓ Licença ${result.status} ativada` : '⚠ Chave inválida (modo FREE)', result.valid ? 'success' : 'warn');
-  }
-
-  // ── Hydrate ───────────────────────────────────────────────
-  private async _hydrateSettings(): Promise<void> {
-    const settings = await StorageManager.getSettings();
-    if (settings.chatMessages) this._renderMsgList(settings.chatMessages);
-    if (settings.autoResponses) this._renderReplyList(settings.autoResponses);
-    if (settings.soundEnabled) {
-      (this.shadow.getElementById('als-toggle-sound') as HTMLInputElement).checked = true;
-      this.audioMgr.setEnabled(true);
-    }
-    if (settings.guardianEnabled) {
-      (this.shadow.getElementById('als-toggle-guardian') as HTMLInputElement).checked = true;
-      this._toggleCollapsible('als-guardian-form', true);
-    }
-    if (settings.licenseKey) {
-      (this.shadow.getElementById('als-license-key') as HTMLInputElement).value = settings.licenseKey;
-    }
-    if (settings.licenseStatus) {
-      const badge = this.shadow.getElementById('als-license-badge')!;
-      badge.className = `als-badge als-badge-${settings.licenseStatus.toLowerCase()}`;
-      badge.textContent = settings.licenseStatus;
-    }
-    if (settings.gmvGoal) {
-      StateManager.patchSettings({ gmvGoal: settings.gmvGoal });
-    }
-  }
-
-  // ── Helpers ───────────────────────────────────────────────
-  private _switchTab(tab: string): void {
-    this.activeTab = tab;
-    this.shadow.querySelectorAll('.als-tab-btn').forEach(b => b.classList.remove('active'));
-    this.shadow.querySelectorAll('.als-pane').forEach(p => p.classList.remove('active'));
-    this.shadow.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');
-    this.shadow.getElementById(`als-pane-${tab}`)?.classList.add('active');
-    EventBus.emit('panel:tab_changed', tab);
-  }
-
-  private _toggleMinimize(): void {
-    const minimized = this.panel.classList.toggle('minimized');
-    const btn = this.shadow.getElementById('als-btn-minimize')!;
-    btn.textContent = minimized ? '+' : '−';
-    StorageManager.savePanelState({ minimized });
-  }
-
-  private _close(): void {
-    this.panel.classList.add('hidden');
-    StorageManager.savePanelState({ visible: false });
   }
 
   private _toggleCollapsible(id: string, open: boolean): void {
-    const el = this.shadow.getElementById(id);
-    el?.classList.toggle('open', open);
+    this.shadow.getElementById(id)?.classList.toggle('open', open);
   }
 
-  private _updateMsgIntervalLabel(): void {
-    const min = (this.shadow.getElementById('als-msg-min-slider') as HTMLInputElement)?.value;
-    const max = (this.shadow.getElementById('als-msg-max-slider') as HTMLInputElement)?.value;
-    const label = this.shadow.getElementById('als-msg-interval-label');
-    if (label) label.textContent = `${min}s – ${max}s`;
-  }
-
-  private _saveNotificationSettings(): void {
-    // persist notification preferences
-    StorageManager.saveSettings({});
-  }
-
-  // ── Toast system ──────────────────────────────────────────
-  private _showToast(message: string, type: 'success' | 'warn' | 'error' | 'info' = 'success'): void {
-    const container = this.shadow.getElementById('als-toasts')!;
-    const toast = document.createElement('div');
-    toast.className = `als-toast ${type}`;
-    toast.textContent = message;
-    container.appendChild(toast);
-
-    setTimeout(() => {
-      toast.style.animation = 'als-toastOut 0.25s ease forwards';
-      setTimeout(() => toast.remove(), 280);
-    }, DEFAULTS.TOAST_DURATION_MS);
-
-    // Limitar toasts
-    while (container.children.length > DEFAULTS.MAX_TOASTS) {
-      container.firstChild?.remove();
+  private async _hydrate(): Promise<void> {
+    const settings = await StorageManager.getSettings();
+    if (settings.chatMessages) this._renderMessages(settings.chatMessages);
+    if (settings.autoResponses) this._renderReplies(settings.autoResponses);
+    if (settings.salesSoundEnabled || settings.soundEnabled) {
+      const toggle = this.shadow.getElementById('als-toggle-sound') as HTMLInputElement;
+      if (toggle) toggle.checked = true;
+      this.audioMgr.setEnabled(true);
     }
+    if (settings.licenseKey) {
+      const input = this.shadow.getElementById('als-license-key') as HTMLInputElement;
+      if (input) input.value = settings.licenseKey;
+    }
+    if (settings.licenseStatus) {
+      const badge = this.shadow.getElementById('als-license-badge');
+      if (badge) {
+        badge.className = `als-badge als-badge-${settings.licenseStatus.toLowerCase()}`;
+        badge.textContent = settings.licenseStatus;
+      }
+    }
+    this._renderGoal();
   }
 }

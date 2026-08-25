@@ -1,39 +1,100 @@
 // ============================================================
-// Auto Live Shop V2 — TikTok Live Adapter
+// Copilo Live Shop V2 — TikTok Live Adapter
+// Adaptador de ciclo de vida e métricas da LIVE no DOM do TikTok Shop
 // ============================================================
-import type { ActionResult, LiveMetrics } from '@/shared/types';
+
+import type { ActionResult, LiveMetrics, LiveStatus } from '@/shared/types';
 import { TikTokSelectors } from './TikTokSelectors';
-import { queryWithFallbacks, queryAllWithFallbacks } from '@/shared/utils';
+import { queryWithFallbacks, isTikTokShopUrl } from '@/shared/utils';
 import { Logger } from '@/core/Logger';
 
 const MODULE = 'TikTokLiveAdapter';
 
 export class TikTokLiveAdapter {
-
-  /** Verifica se a LIVE está ativa observando o DOM */
+  /**
+   * Verifica no DOM se existe uma transmissão ativa.
+   * Não retorna sucesso falso caso a LIVE não esteja ativa.
+   */
   isLiveActive(): boolean {
-    // Verifica indicador de live no DOM
+    if (!isTikTokShopUrl()) {
+      return false;
+    }
+
+    // 1. Verifica presença de badge ou indicador de status de transmissão no DOM
     const badge = queryWithFallbacks(TikTokSelectors.live.liveIndicator);
-    if (badge) {
-      Logger.debug(MODULE, 'Badge de live encontrado:', badge);
+    if (badge && badge.textContent && /live|ao vivo|gravando/i.test(badge.textContent)) {
+      Logger.debug(MODULE, 'Badge ativo encontrado no DOM');
       return true;
     }
 
-    // Verifica container do streamer
+    // 2. Verifica presença do container de estúdio ativo
     const container = queryWithFallbacks(TikTokSelectors.live.streamerContainer);
     if (container) {
-      Logger.debug(MODULE, 'Container de streamer encontrado');
+      const endBtn = queryWithFallbacks(TikTokSelectors.live.endLiveButton, container);
+      if (endBtn) {
+        Logger.debug(MODULE, 'Container de estúdio com botão de encerrar encontrado');
+        return true;
+      }
+    }
+
+    // 3. Verifica timer de live em andamento no DOM
+    const timer = queryWithFallbacks(TikTokSelectors.live.liveTimer);
+    if (timer && timer.textContent && timer.textContent.trim().length > 0) {
       return true;
     }
 
-    // Fallback: verificar URL
-    const url = window.location.href;
-    const isLiveUrl = url.includes('streamer') || url.includes('live-studio') || url.includes('creator/live');
-    Logger.debug(MODULE, 'isLiveActive por URL:', isLiveUrl);
-    return isLiveUrl;
+    return false;
   }
 
-  /** Tenta ler métricas do DOM */
+  /**
+   * Tenta extrair o identificador único da LIVE se disponível no DOM ou URL.
+   */
+  getLiveId(): string | undefined {
+    try {
+      const roomEl = queryWithFallbacks(TikTokSelectors.live.roomInfo);
+      if (roomEl) {
+        const id = (roomEl as HTMLElement).dataset['roomId'] ||
+          roomEl.getAttribute('content') ||
+          roomEl.getAttribute('data-room-id');
+        if (id) return id;
+      }
+
+      // Tenta extrair da URL
+      const match = window.location.href.match(/streamer\/(\d+)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    } catch (err) {
+      Logger.debug(MODULE, 'Não foi possível extrair liveId:', err);
+    }
+    return undefined;
+  }
+
+  /**
+   * Retorna o status detalhado atual da LIVE.
+   */
+  getLiveStatus(): LiveStatus {
+    if (!isTikTokShopUrl()) {
+      return 'LIVE_INACTIVE';
+    }
+
+    const active = this.isLiveActive();
+    if (active) {
+      return 'LIVE_ACTIVE';
+    }
+
+    // Se estiver na URL de transmissão mas sem indicadores ativos
+    if (window.location.href.includes('streamer') || window.location.href.includes('live-studio')) {
+      return 'LIVE_DETECTING';
+    }
+
+    return 'LIVE_INACTIVE';
+  }
+
+  /**
+   * Extrai métricas reais do DOM do TikTok Shop.
+   * Não inventa dados fictícios.
+   */
   getLiveMetrics(): Partial<LiveMetrics> {
     const metrics: Partial<LiveMetrics> = {
       updatedAt: Date.now(),
@@ -42,52 +103,61 @@ export class TikTokLiveAdapter {
 
     try {
       const gmvEl = queryWithFallbacks(TikTokSelectors.metrics.gmv);
-      if (gmvEl) {
-        const raw = gmvEl.textContent?.replace(/[^0-9.,]/g, '').replace(',', '.') ?? '';
+      if (gmvEl && gmvEl.textContent) {
+        const raw = gmvEl.textContent.replace(/[^0-9.,]/g, '').replace(',', '.');
         const val = parseFloat(raw);
         if (!isNaN(val)) metrics.gmv = val;
       }
 
       const viewersEl = queryWithFallbacks(TikTokSelectors.metrics.viewers);
-      if (viewersEl) {
-        const raw = viewersEl.textContent?.replace(/[^0-9]/g, '') ?? '';
-        const val = parseInt(raw);
+      if (viewersEl && viewersEl.textContent) {
+        const raw = viewersEl.textContent.replace(/[^0-9]/g, '');
+        const val = parseInt(raw, 10);
         if (!isNaN(val)) metrics.viewers = val;
       }
 
       const ordersEl = queryWithFallbacks(TikTokSelectors.metrics.orders);
-      if (ordersEl) {
-        const raw = ordersEl.textContent?.replace(/[^0-9]/g, '') ?? '';
-        const val = parseInt(raw);
+      if (ordersEl && ordersEl.textContent) {
+        const raw = ordersEl.textContent.replace(/[^0-9]/g, '');
+        const val = parseInt(raw, 10);
         if (!isNaN(val)) metrics.salesCount = val;
       }
 
       const soldEl = queryWithFallbacks(TikTokSelectors.metrics.soldItems);
-      if (soldEl) {
-        const raw = soldEl.textContent?.replace(/[^0-9]/g, '') ?? '';
-        const val = parseInt(raw);
+      if (soldEl && soldEl.textContent) {
+        const raw = soldEl.textContent.replace(/[^0-9]/g, '');
+        const val = parseInt(raw, 10);
         if (!isNaN(val)) metrics.soldItems = val;
       }
     } catch (err) {
-      Logger.warn(MODULE, 'Erro ao ler métricas:', err);
+      Logger.warn(MODULE, 'Erro ao extrair métricas do DOM:', err);
       metrics.source = 'unknown';
     }
 
     return metrics;
   }
 
-  /** Tenta encerrar a live clicando no botão */
+  /**
+   * Dispara o encerramento da LIVE interagindo com o botão do TikTok Shop.
+   */
   async endLive(): Promise<ActionResult> {
     try {
       const btn = queryWithFallbacks(TikTokSelectors.live.endLiveButton) as HTMLButtonElement | null;
       if (!btn) {
-        return { success: false, error: 'Botão de encerrar não encontrado no DOM' };
+        return {
+          success: false,
+          error: 'Botão de encerrar live não encontrado no DOM',
+        };
       }
+
       btn.click();
-      Logger.info(MODULE, 'Botão de encerrar live clicado');
+      Logger.info(MODULE, 'Clique no botão de encerrar live executado');
       return { success: true };
     } catch (err) {
-      return { success: false, error: String(err) };
+      return {
+        success: false,
+        error: `Falha ao encerrar live: ${String(err)}`,
+      };
     }
   }
 }

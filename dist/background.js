@@ -1,76 +1,131 @@
-import { L as Logger, S as STORAGE_KEYS, C as COMMANDS, A as ALARMS } from "./chunks/Logger-DdLQpsBp.js";
+import { L as Logger, A as ALARMS, a as APP_NAME, S as STORAGE_KEYS, C as COMMANDS } from "./chunks/Logger-C-jcrhwc.js";
+const MODULE$1 = "LiveBackgroundService";
+class LiveBackgroundService {
+  /**
+   * Inicializa handlers de ciclo de vida e alarmes no Service Worker.
+   */
+  init() {
+    Logger.info(MODULE$1, "Inicializando LiveBackgroundService...");
+    this._registerAlarmsListener();
+  }
+  /**
+   * Agenda alarme de encerramento programado.
+   */
+  scheduleAutoClose(delayMs) {
+    chrome.alarms.create(ALARMS.AUTO_CLOSE, { when: Date.now() + delayMs });
+    Logger.info(MODULE$1, `Encerramento programado para daqui a ${Math.round(delayMs / 1e3)}s`);
+  }
+  /**
+   * Cancela qualquer alarme ativo pelo nome.
+   */
+  cancelAlarm(alarmName) {
+    chrome.alarms.clear(alarmName);
+    Logger.info(MODULE$1, `Alarme "${alarmName}" cancelado`);
+  }
+  /**
+   * Emite uma notificação nativa do Chrome.
+   */
+  sendNotification(title, message, priority = 1) {
+    if (typeof chrome === "undefined" || !chrome.notifications) return;
+    chrome.notifications.create({
+      type: "basic",
+      iconUrl: "icons/icon48.png",
+      title: title || APP_NAME,
+      message: message || "",
+      priority
+    });
+  }
+  _registerAlarmsListener() {
+    if (typeof chrome === "undefined" || !chrome.alarms) return;
+    chrome.alarms.onAlarm.addListener(async (alarm) => {
+      Logger.info(MODULE$1, `Alarme disparado: ${alarm.name}`);
+      if (alarm.name === ALARMS.AUTO_CLOSE) {
+        this.sendNotification(
+          `⚠️ ${APP_NAME}`,
+          "Tempo limite atingido! Encerramento automático disparado.",
+          2
+        );
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]?.id) {
+          chrome.tabs.sendMessage(tabs[0].id, {
+            type: "ALS_AUTO_CLOSE_TRIGGERED",
+            timestamp: Date.now()
+          }).catch(() => {
+          });
+        }
+      }
+    });
+  }
+}
 const MODULE = "ServiceWorker";
+const liveBgService = new LiveBackgroundService();
+liveBgService.init();
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
-  Logger.info(MODULE, "onInstalled:", reason);
+  Logger.info(MODULE, `Extensão ${APP_NAME} instalada/atualizada [Razão: ${reason}]`);
   if (reason === "install") {
     await chrome.storage.local.set({
       [STORAGE_KEYS.INITIALIZED]: false
     });
-    Logger.info(MODULE, "Storage inicializado");
+    Logger.info(MODULE, "Storage inicializado para primeiro uso");
   }
 });
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  const { type } = msg;
-  if (type === COMMANDS.HEARTBEAT) {
-    sendResponse({ ok: true, ts: Date.now() });
-    return false;
-  }
-  if (type === "ALS_NOTIFY") {
-    const { title, message } = msg.payload;
-    chrome.notifications.create({
-      type: "basic",
-      iconUrl: "icons/icon48.png",
-      title: title || "Auto Live Shop",
-      message: message || "",
-      priority: 1
-    });
-    sendResponse({ ok: true });
-    return false;
-  }
-  if (type === "ALS_SCHEDULE_CLOSE") {
-    const { delayMs } = msg.payload;
-    chrome.alarms.create(ALARMS.AUTO_CLOSE, { when: Date.now() + delayMs });
-    sendResponse({ ok: true });
-    return false;
-  }
-  if (type === "ALS_CANCEL_ALARM") {
-    const { name } = msg.payload;
-    chrome.alarms.clear(name);
-    sendResponse({ ok: true });
-    return false;
-  }
-  return false;
-});
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  Logger.info(MODULE, "Alarm:", alarm.name);
-  if (alarm.name === ALARMS.AUTO_CLOSE) {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tabs[0]?.id) {
-      chrome.tabs.sendMessage(tabs[0].id, { type: "ALS_AUTO_CLOSE_TRIGGERED" }).catch(() => {
-      });
+  if (!msg || !msg.type) return false;
+  const { type, payload } = msg;
+  switch (type) {
+    case COMMANDS.HEARTBEAT:
+    case "ALS_HEARTBEAT":
+      sendResponse({ ok: true, timestamp: Date.now() });
+      return false;
+    case "ALS_NOTIFY": {
+      const data = payload;
+      liveBgService.sendNotification(
+        data.title || APP_NAME,
+        data.message || "",
+        data.priority || 1
+      );
+      sendResponse({ ok: true });
+      return false;
     }
-    chrome.notifications.create({
-      type: "basic",
-      iconUrl: "icons/icon48.png",
-      title: "⚠️ Auto Live Shop",
-      message: "Encerramento automático acionado!",
-      priority: 2
-    });
+    case "ALS_SCHEDULE_CLOSE": {
+      const { delayMs } = payload || {};
+      if (delayMs && delayMs > 0) {
+        liveBgService.scheduleAutoClose(delayMs);
+        sendResponse({ ok: true });
+      } else {
+        sendResponse({ ok: false, error: "Intervalo inválido" });
+      }
+      return false;
+    }
+    case "ALS_CANCEL_ALARM": {
+      const { name } = payload || {};
+      if (name) {
+        liveBgService.cancelAlarm(name);
+        sendResponse({ ok: true });
+      }
+      return false;
+    }
+    default:
+      return false;
   }
 });
 chrome.action.onClicked.addListener(async (tab) => {
-  Logger.info(MODULE, "Ícone clicado — tab:", tab.id);
   if (!tab.id) return;
+  Logger.info(MODULE, `Ação disparada pelo ícone na aba ${tab.id}`);
   try {
-    const response = await chrome.tabs.sendMessage(tab.id, { type: "ALS_PING" }).catch(() => null);
-    if (!response) {
+    const pingResponse = await chrome.tabs.sendMessage(tab.id, {
+      type: "ALS_PING",
+      timestamp: Date.now()
+    }).catch(() => null);
+    if (!pingResponse) {
+      Logger.info(MODULE, "Injetando content script na página...");
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         files: ["content/bootstrap.js"]
-      }).catch((err) => Logger.warn(MODULE, "Erro ao injetar script:", err));
+      }).catch((err) => Logger.warn(MODULE, "Injeção direta falhou:", err));
     }
   } catch (err) {
-    Logger.warn(MODULE, "Erro ao comunicar com tab:", err);
+    Logger.warn(MODULE, "Erro ao comunicar com a aba ativa:", err);
   }
 });
-Logger.info(MODULE, "✅ Service Worker ativo");
+Logger.info(MODULE, `✅ Service Worker do ${APP_NAME} ativo`);

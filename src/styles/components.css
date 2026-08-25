@@ -1,0 +1,98 @@
+/* ============================================================
+   Copilo Live Shop V2 — Component Styles
+   ============================================================ */
+
+/* ── Botões ───────────────────────────────────────────────── */
+.als-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.als-btn-sm { padding: 6px 12px; font-size: 11px; }
+.als-btn-xs { padding: 4px 8px; font-size: 10px; }
+.als-btn-full { width: 100%; justify-content: center; }
+
+.als-btn-green {
+  background: linear-gradient(135deg, var(--green), var(--green-dim));
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+}
+.als-btn-green:hover {
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.5);
+  transform: translateY(-1px);
+}
+
+.als-btn-ghost {
+  background: var(--bg-card-alt);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+.als-btn-ghost:hover {
+  background: var(--border);
+  color: var(--text-1);
+}
+
+/* ── Toggle Switch ────────────────────────────────────────── */
+.als-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.als-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+.als-toggle-slider {
+  width: 38px;
+  height: 21px;
+  background: var(--border);
+  border-radius: 11px;
+  position: relative;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+.als-toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 2.5px;
+  left: 2.5px;
+  width: 16px;
+  height: 16px;
+  background: var(--text-3);
+  border-radius: 50%;
+  transition: transform var(--transition), background var(--transition);
+}
+.als-toggle input:checked + .als-toggle-slider {
+  background: var(--green);
+}
+.als-toggle input:checked + .als-toggle-slider::after {
+  transform: translateX(17px);
+  background: #fff;
+}
+
+.als-toggle-sm .als-toggle-slider { width: 30px; height: 17px; }
+.als-toggle-sm .als-toggle-slider::after { width: 13px; height: 13px; }
+.als-toggle-sm input:checked + .als-toggle-slider::after { transform: translateX(13px); }
+
+/* ── Badges ───────────────────────────────────────────────── */
+.als-badge {
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.als-badge-free    { background: rgba(100, 116, 139, 0.2); border: 1px solid rgba(100, 116, 139, 0.4); color: var(--text-3); }
+.als-badge-pro     { background: rgba(20, 184, 166, 0.15); border: 1px solid rgba(20, 184, 166, 0.4); color: var(--teal-light); }
+.als-badge-premium { background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.4); color: var(--yellow); }
+.als-badge-active  { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); color: var(--green); }
