@@ -1,7 +1,7 @@
 {
-  "name": "auto-live-shop",
+  "name": "copilo-live-shop",
   "version": "2.0.0",
-  "description": "Auto Live Shop V2 — Copiloto de lives para TikTok Shop",
+  "description": "Copilo Live Shop V2 — Copiloto de lives para TikTok Shop",
   "private": true,
   "scripts": {
     "dev": "vite build --watch",
