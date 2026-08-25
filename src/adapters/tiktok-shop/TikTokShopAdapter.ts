@@ -8,6 +8,7 @@ import { TikTokLiveAdapter } from './TikTokLiveAdapter';
 import { TikTokProductAdapter } from './TikTokProductAdapter';
 import { TikTokSelectors } from './TikTokSelectors';
 import { queryWithFallbacks, sleep } from '@/shared/utils';
+import { liveRemoteAgent } from '@/isolated/live-remote-agent';
 import { Logger } from '@/core/Logger';
 
 const MODULE = 'TikTokShopAdapter';
@@ -48,19 +49,50 @@ export class TikTokShopAdapter implements ITikTokShopAdapter {
 
   async pinProduct(productId: string): Promise<ActionResult> {
     Logger.info(MODULE, `pinProduct chamado para ID: ${productId}`);
+
+    // 1. Tenta fixar através do MAIN WORLD Controller
+    const remoteRes = await liveRemoteAgent.pinProduct(productId);
+    if (remoteRes.success) {
+      return remoteRes;
+    }
+
+    // 2. Fallback para execução direta no DOM isolado
+    Logger.info(MODULE, 'Tentando fixação via fallback no DOM local...');
     return this.products.pinProduct(productId);
   }
 
   async unpinProduct(): Promise<ActionResult> {
     Logger.info(MODULE, 'unpinProduct chamado');
+
+    // 1. Tenta desafixar via MAIN WORLD
+    const remoteRes = await liveRemoteAgent.unpinProduct();
+    if (remoteRes.success) {
+      return remoteRes;
+    }
+
+    // 2. Fallback para DOM local
     return this.products.unpinProduct();
   }
 
   async refreshProducts(): Promise<ActionResult<LiveProduct[]>> {
+    // 1. Tenta via MAIN WORLD
+    const remoteRes = await liveRemoteAgent.refreshProducts();
+    if (remoteRes.success && remoteRes.data && remoteRes.data.length > 0) {
+      return remoteRes;
+    }
+
+    // 2. Fallback para leitura do DOM local
     return this.products.refreshProducts();
   }
 
   async sendChatMessage(text: string): Promise<ActionResult> {
+    // 1. Tenta via MAIN WORLD
+    const remoteRes = await liveRemoteAgent.sendChatMessage(text);
+    if (remoteRes.success) {
+      return remoteRes;
+    }
+
+    // 2. Fallback para DOM local
     try {
       const input = queryWithFallbacks(TikTokSelectors.chat.input) as HTMLInputElement | HTMLElement | null;
 
@@ -71,7 +103,6 @@ export class TikTokShopAdapter implements ITikTokShopAdapter {
         };
       }
 
-      // Injeta o texto simulando digitação real e eventos sintéticos
       const nativeSetter = Object.getOwnPropertyDescriptor(
         window.HTMLInputElement.prototype,
         'value',
@@ -95,7 +126,6 @@ export class TikTokShopAdapter implements ITikTokShopAdapter {
         return { success: true };
       }
 
-      // Fallback para envio com tecla Enter
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
       return { success: true };
     } catch (err) {

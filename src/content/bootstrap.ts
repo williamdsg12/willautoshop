@@ -14,6 +14,7 @@ import { EventBus } from '@/core/EventBus';
 // Detectores e Injetores
 import { PageDetector } from './page-detector';
 import { PanelInjector } from './panel-injector';
+import { MainWorldInjector } from './main-world-injector';
 import { LiveDetector } from '@/detectors/LiveDetector';
 import { SalesDetector } from '@/detectors/SalesDetector';
 import { ProductDetector } from '@/detectors/ProductDetector';
@@ -81,10 +82,16 @@ async function startBootstrap(): Promise<void> {
   const isTarget = pageDetector.isTargetPage();
   Logger.info(MODULE, `Página alvo detectada? ${isTarget ? 'SIM (iniciando montagem)' : 'NÃO (aguardando navegação SPA)'}`);
 
+  if (isTarget) {
+    // Injeta o controlador no MAIN WORLD da página
+    MainWorldInjector.inject();
+  }
+
   if (!isTarget) {
     const unwatch = pageDetector.watchNavigation(async () => {
       if (pageDetector.isTargetPage() && !panelInjector.isAlreadyInjected()) {
         unwatch();
+        MainWorldInjector.inject();
         await initializeSession(panelInjector);
       }
     });
@@ -98,6 +105,7 @@ async function startBootstrap(): Promise<void> {
   pageDetector.watchNavigation(async () => {
     if (pageDetector.isTargetPage() && !panelInjector.isAlreadyInjected()) {
       Logger.info(MODULE, 'Nova rota do TikTok Shop detectada via SPA — montando painel...');
+      MainWorldInjector.inject();
       await initializeSession(panelInjector);
     }
   });

@@ -1,6 +1,7 @@
 // ============================================================
 // Copilo Live Shop V2 — Extension Bundler
-// Constrói content script como IIFE auto-contido e background worker
+// Constrói content script como IIFE auto-contido, background worker
+// e o controlador nativo do MAIN WORLD
 // ============================================================
 
 import { build } from 'vite';
@@ -21,7 +22,7 @@ async function bundleExtension() {
   mkdirSync(distDir, { recursive: true });
 
   // 1. Build Background Service Worker (ES Module)
-  console.log('📦 Compilando Background Service Worker...');
+  console.log('📦 [1/3] Compilando Background Service Worker...');
   await build({
     configFile: false,
     resolve: {
@@ -46,7 +47,7 @@ async function bundleExtension() {
   });
 
   // 2. Build Content Script (IIFE - Auto-contido sem imports externos)
-  console.log('📦 Compilando Content Script (IIFE)...');
+  console.log('📦 [2/3] Compilando Content Script (IIFE)...');
   await build({
     configFile: false,
     resolve: {
@@ -70,7 +71,35 @@ async function bundleExtension() {
     },
   });
 
-  // 3. Copiar manifest.json e ícones
+  // 3. Build Main World Controller (IIFE - Executa no contexto JS da página)
+  console.log('📦 [3/3] Compilando Main World Controller (IIFE)...');
+  const mainWorldDist = resolve(distDir, 'main-world');
+  mkdirSync(mainWorldDist, { recursive: true });
+
+  await build({
+    configFile: false,
+    resolve: {
+      alias: { '@': resolve(__dirname, 'src') },
+    },
+    build: {
+      outDir: mainWorldDist,
+      emptyOutDir: false,
+      minify: false,
+      sourcemap: false,
+      target: 'chrome110',
+      lib: {
+        entry: resolve(__dirname, 'src/main-world/live-remote-controller.ts'),
+        name: 'CopiloLiveRemoteController',
+        formats: ['iife'],
+        fileName: () => 'controller.js',
+      },
+      define: {
+        'process.env.NODE_ENV': '"production"',
+      },
+    },
+  });
+
+  // 4. Copiar manifest.json e ícones
   console.log('📋 Copiando manifest.json e assets...');
   copyFileSync(resolve(__dirname, 'manifest.json'), resolve(distDir, 'manifest.json'));
 

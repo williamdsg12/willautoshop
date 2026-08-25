@@ -59,7 +59,7 @@
       "resources": [
         "icons/*",
         "assets/*",
-        "chunks/*"
+        "main-world/*"
       ],
       "matches": [
         "*://*.tiktok.com/*",

@@ -144,7 +144,7 @@
     }
   }
   const Logger = new LoggerClass();
-  const MODULE$l = "EventBus";
+  const MODULE$o = "EventBus";
   class EventBusClass {
     listeners = /* @__PURE__ */ new Map();
     onceListeners = /* @__PURE__ */ new Map();
@@ -191,7 +191,7 @@
           try {
             cb(payload);
           } catch (err) {
-            Logger.error(MODULE$l, `Erro no listener do evento "${String(event)}":`, err);
+            Logger.error(MODULE$o, `Erro no listener do evento "${String(event)}":`, err);
           }
         });
       }
@@ -203,7 +203,7 @@
           try {
             cb(payload);
           } catch (err) {
-            Logger.error(MODULE$l, `Erro no once listener do evento "${String(event)}":`, err);
+            Logger.error(MODULE$o, `Erro no once listener do evento "${String(event)}":`, err);
           }
         });
       }
@@ -228,7 +228,7 @@
     }
   }
   const EventBus = new EventBusClass();
-  const MODULE$k = "StateManager";
+  const MODULE$n = "StateManager";
   function createDefaultMetrics() {
     return {
       gmv: 0,
@@ -353,7 +353,7 @@
         try {
           sub(this._state);
         } catch (err) {
-          Logger.error(MODULE$k, "Erro ao notificar subscriber de estado:", err);
+          Logger.error(MODULE$n, "Erro ao notificar subscriber de estado:", err);
         }
       });
     }
@@ -433,7 +433,7 @@
     addSale(sale) {
       const isDuplicate = this._state.live.sales.some((s) => s.id === sale.id);
       if (isDuplicate) {
-        Logger.debug(MODULE$k, `Venda duplicada ignorada [ID: ${sale.id}]`);
+        Logger.debug(MODULE$n, `Venda duplicada ignorada [ID: ${sale.id}]`);
         return;
       }
       const sales = [sale, ...this._state.live.sales].slice(0, DEFAULTS.MAX_SALES_HISTORY);
@@ -480,7 +480,7 @@
         this._state.license = { ...createDefaultLicenseState(), ...partial.license };
       }
       this._notify();
-      Logger.info(MODULE$k, "Estado central hidratado com sucesso.");
+      Logger.info(MODULE$n, "Estado central hidratado com sucesso.");
     }
     reset() {
       this._state = {
@@ -494,7 +494,7 @@
     }
   }
   const StateManager = new StateManagerClass();
-  const MODULE$j = "StorageManager";
+  const MODULE$m = "StorageManager";
   class StorageManagerClass {
     inMemoryFallback = /* @__PURE__ */ new Map();
     isChromeStorageAvailable() {
@@ -511,7 +511,7 @@
         const result = await chrome.storage.local.get(key);
         return result[key] !== void 0 ? result[key] : defaultValue;
       } catch (err) {
-        Logger.error(MODULE$j, `Erro ao obter chave "${key}":`, err);
+        Logger.error(MODULE$m, `Erro ao obter chave "${key}":`, err);
         return defaultValue;
       }
     }
@@ -526,7 +526,7 @@
       try {
         await chrome.storage.local.set({ [key]: value });
       } catch (err) {
-        Logger.error(MODULE$j, `Erro ao salvar chave "${key}":`, err);
+        Logger.error(MODULE$m, `Erro ao salvar chave "${key}":`, err);
       }
     }
     /**
@@ -540,7 +540,7 @@
       try {
         await chrome.storage.local.remove(key);
       } catch (err) {
-        Logger.error(MODULE$j, `Erro ao remover chave "${key}":`, err);
+        Logger.error(MODULE$m, `Erro ao remover chave "${key}":`, err);
       }
     }
     /**
@@ -554,7 +554,7 @@
       try {
         await chrome.storage.local.clear();
       } catch (err) {
-        Logger.error(MODULE$j, "Erro ao limpar storage:", err);
+        Logger.error(MODULE$m, "Erro ao limpar storage:", err);
       }
     }
     /**
@@ -573,7 +573,7 @@
       try {
         return await chrome.storage.local.get(keys);
       } catch (err) {
-        Logger.error(MODULE$j, "Erro ao ler múltiplas chaves:", err);
+        Logger.error(MODULE$m, "Erro ao ler múltiplas chaves:", err);
         return {};
       }
     }
@@ -588,7 +588,7 @@
       try {
         await chrome.storage.local.set(items);
       } catch (err) {
-        Logger.error(MODULE$j, "Erro ao salvar múltiplos itens:", err);
+        Logger.error(MODULE$m, "Erro ao salvar múltiplos itens:", err);
       }
     }
     // ── Métodos de Alto Nível ───────────────────────────────────
@@ -633,7 +633,7 @@
     }
   }
   const StorageManager = new StorageManagerClass();
-  const MODULE$i = "MessageBus";
+  const MODULE$l = "MessageBus";
   class MessageBusClass {
     handlers = /* @__PURE__ */ new Map();
     isListening = false;
@@ -656,13 +656,13 @@
         timestamp: Date.now()
       };
       if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) {
-        Logger.warn(MODULE$i, `Ambiente Chrome não disponível para envio da mensagem "${type}"`);
+        Logger.warn(MODULE$l, `Ambiente Chrome não disponível para envio da mensagem "${type}"`);
         return null;
       }
       try {
         return await chrome.runtime.sendMessage(msg);
       } catch (err) {
-        Logger.warn(MODULE$i, `Erro ao enviar mensagem "${type}":`, err);
+        Logger.warn(MODULE$l, `Erro ao enviar mensagem "${type}":`, err);
         return null;
       }
     }
@@ -682,7 +682,7 @@
       try {
         return await chrome.tabs.sendMessage(tabId, msg);
       } catch (err) {
-        Logger.warn(MODULE$i, `Erro ao enviar para tab ${tabId} "${type}":`, err);
+        Logger.warn(MODULE$l, `Erro ao enviar para tab ${tabId} "${type}":`, err);
         return null;
       }
     }
@@ -702,7 +702,7 @@
           }
         }
       } catch (err) {
-        Logger.error(MODULE$i, `Erro ao disparar broadcast de "${type}":`, err);
+        Logger.error(MODULE$l, `Erro ao disparar broadcast de "${type}":`, err);
       }
     }
     /**
@@ -712,7 +712,7 @@
       try {
         sendResponse(data);
       } catch (err) {
-        Logger.error(MODULE$i, "Erro ao responder mensagem:", err);
+        Logger.error(MODULE$l, "Erro ao responder mensagem:", err);
       }
     }
     /**
@@ -721,7 +721,7 @@
     listen() {
       if (this.isListening) return;
       if (typeof chrome === "undefined" || !chrome.runtime?.onMessage) {
-        Logger.warn(MODULE$i, "chrome.runtime.onMessage indisponível no ambiente atual.");
+        Logger.warn(MODULE$l, "chrome.runtime.onMessage indisponível no ambiente atual.");
         return;
       }
       this.isListening = true;
@@ -733,7 +733,7 @@
           const result = handler(msg, sender);
           if (result instanceof Promise) {
             result.then((res) => sendResponse(res)).catch((err) => {
-              Logger.error(MODULE$i, `Erro assíncrono no handler "${msg.type}":`, err);
+              Logger.error(MODULE$l, `Erro assíncrono no handler "${msg.type}":`, err);
               sendResponse({ error: String(err) });
             });
             return true;
@@ -741,16 +741,16 @@
           sendResponse(result);
           return false;
         } catch (err) {
-          Logger.error(MODULE$i, `Erro no handler síncrono "${msg.type}":`, err);
+          Logger.error(MODULE$l, `Erro no handler síncrono "${msg.type}":`, err);
           sendResponse({ error: String(err) });
           return false;
         }
       });
-      Logger.info(MODULE$i, "Listener do MessageBus ativo");
+      Logger.info(MODULE$l, "Listener do MessageBus ativo");
     }
   }
   const MessageBus = new MessageBusClass();
-  const MODULE$h = "PageDetector";
+  const MODULE$k = "PageDetector";
   class PageDetector {
     lastRoute = "";
     /**
@@ -767,7 +767,7 @@
       const interval = setInterval(() => {
         const currentRoute = getCurrentRoute();
         if (currentRoute !== this.lastRoute) {
-          Logger.info(MODULE$h, `Navegação detectada: ${currentRoute}`);
+          Logger.info(MODULE$k, `Navegação detectada: ${currentRoute}`);
           this.lastRoute = currentRoute;
           onNavigate(currentRoute);
         }
@@ -1289,7 +1289,7 @@
       ]
     }
   };
-  const MODULE$g = "TikTokLiveAdapter";
+  const MODULE$j = "TikTokLiveAdapter";
   class TikTokLiveAdapter {
     /**
      * Verifica no DOM se existe uma transmissão ativa.
@@ -1301,14 +1301,14 @@
       }
       const badge = queryWithFallbacks(TikTokSelectors.live.liveIndicator);
       if (badge && badge.textContent && /live|ao vivo|gravando/i.test(badge.textContent)) {
-        Logger.debug(MODULE$g, "Badge ativo encontrado no DOM");
+        Logger.debug(MODULE$j, "Badge ativo encontrado no DOM");
         return true;
       }
       const container = queryWithFallbacks(TikTokSelectors.live.streamerContainer);
       if (container) {
         const endBtn = queryWithFallbacks(TikTokSelectors.live.endLiveButton, container);
         if (endBtn) {
-          Logger.debug(MODULE$g, "Container de estúdio com botão de encerrar encontrado");
+          Logger.debug(MODULE$j, "Container de estúdio com botão de encerrar encontrado");
           return true;
         }
       }
@@ -1333,7 +1333,7 @@
           return match[1];
         }
       } catch (err) {
-        Logger.debug(MODULE$g, "Não foi possível extrair liveId:", err);
+        Logger.debug(MODULE$j, "Não foi possível extrair liveId:", err);
       }
       return void 0;
     }
@@ -1388,7 +1388,7 @@
           if (!isNaN(val)) metrics.soldItems = val;
         }
       } catch (err) {
-        Logger.warn(MODULE$g, "Erro ao extrair métricas do DOM:", err);
+        Logger.warn(MODULE$j, "Erro ao extrair métricas do DOM:", err);
         metrics.source = "unknown";
       }
       return metrics;
@@ -1406,7 +1406,7 @@
           };
         }
         btn.click();
-        Logger.info(MODULE$g, "Clique no botão de encerrar live executado");
+        Logger.info(MODULE$j, "Clique no botão de encerrar live executado");
         return { success: true };
       } catch (err) {
         return {
@@ -1416,7 +1416,7 @@
       }
     }
   }
-  const MODULE$f = "TikTokProductAdapter";
+  const MODULE$i = "TikTokProductAdapter";
   class TikTokProductAdapter {
     /**
      * Lê a lista de produtos disponíveis atualmente no DOM do TikTok Shop.
@@ -1424,7 +1424,7 @@
     getProducts() {
       const items = queryAllWithFallbacks(TikTokSelectors.products.item);
       if (!items.length) {
-        Logger.debug(MODULE$f, "Nenhum item de produto encontrado no DOM");
+        Logger.debug(MODULE$i, "Nenhum item de produto encontrado no DOM");
         return [];
       }
       const products = items.map((item, index) => {
@@ -1443,7 +1443,7 @@
           isPinned
         };
       });
-      Logger.debug(MODULE$f, `${products.length} produtos mapeados do DOM`);
+      Logger.debug(MODULE$i, `${products.length} produtos mapeados do DOM`);
       return products;
     }
     /**
@@ -1520,11 +1520,11 @@
           };
         }
         pinBtn.click();
-        Logger.info(MODULE$f, `Comando de fixação disparado para produto "${productId}"`);
+        Logger.info(MODULE$i, `Comando de fixação disparado para produto "${productId}"`);
         await sleep(750);
         const isConfirmed = this._verifyPinnedState(productId);
         if (!isConfirmed) {
-          Logger.warn(MODULE$f, `Ação de fixação do produto "${productId}" não confirmada pelo TikTok Shop`);
+          Logger.warn(MODULE$i, `Ação de fixação do produto "${productId}" não confirmada pelo TikTok Shop`);
           return {
             success: false,
             error: "Ação não confirmada pelo TikTok Shop"
@@ -1574,7 +1574,7 @@
             error: "Ação não confirmada pelo TikTok Shop"
           };
         }
-        Logger.info(MODULE$f, "Produto desafixado com sucesso");
+        Logger.info(MODULE$i, "Produto desafixado com sucesso");
         return { success: true };
       } catch (err) {
         return {
@@ -1591,7 +1591,213 @@
       return !!pinnedBadge;
     }
   }
-  const MODULE$e = "TikTokShopAdapter";
+  const MODULE$h = "PlatformBridge";
+  const BRIDGE_EVENTS = {
+    COMMAND: "LIVE_REMOTE_COMMAND",
+    STATE: "LIVE_REMOTE_STATE",
+    HEARTBEAT: "LIVE_REMOTE_HEARTBEAT",
+    SYNC_AUTO: "LIVE_REMOTE_SYNC_AUTO",
+    RESPONSE: "LIVE_REMOTE_RESPONSE"
+  };
+  class PlatformBridge {
+    isMainWorld;
+    sourceTag;
+    targetTag;
+    handlers = /* @__PURE__ */ new Map();
+    pendingRequests = /* @__PURE__ */ new Map();
+    constructor(isMainWorld) {
+      this.isMainWorld = isMainWorld;
+      this.sourceTag = isMainWorld ? "COPILO_MAIN" : "COPILO_ISOLATED";
+      this.targetTag = isMainWorld ? "COPILO_ISOLATED" : "COPILO_MAIN";
+      this._initListener();
+    }
+    _initListener() {
+      window.addEventListener("message", async (event) => {
+        if (event.source !== window || !event.data || typeof event.data !== "object") {
+          return;
+        }
+        const envelope = event.data;
+        if (envelope.source !== this.targetTag) {
+          return;
+        }
+        if (envelope.type === BRIDGE_EVENTS.RESPONSE && this.pendingRequests.has(envelope.correlationId)) {
+          const pending = this.pendingRequests.get(envelope.correlationId);
+          clearTimeout(pending.timer);
+          this.pendingRequests.delete(envelope.correlationId);
+          pending.resolve(envelope.payload);
+          return;
+        }
+        const handlerKey = envelope.action ? `${envelope.type}:${envelope.action}` : envelope.type;
+        const handler = this.handlers.get(handlerKey) || this.handlers.get(envelope.type);
+        if (handler) {
+          try {
+            const result = await handler(envelope);
+            if (envelope.correlationId) {
+              this.sendResponse(envelope.correlationId, result);
+            }
+          } catch (err) {
+            Logger.error(MODULE$h, `Erro ao processar mensagem da ponte [${envelope.type}]:`, err);
+            if (envelope.correlationId) {
+              this.sendResponse(envelope.correlationId, { error: String(err) });
+            }
+          }
+        }
+      });
+    }
+    /**
+     * Registra um listener para eventos vindos do outro mundo.
+     */
+    on(type, actionOrHandler, handler) {
+      let key;
+      let fn;
+      if (typeof actionOrHandler === "string" && handler) {
+        key = `${type}:${actionOrHandler}`;
+        fn = handler;
+      } else {
+        key = type;
+        fn = actionOrHandler;
+      }
+      this.handlers.set(key, fn);
+      return () => this.handlers.delete(key);
+    }
+    /**
+     * Envia uma mensagem sem esperar resposta (fire-and-forget).
+     */
+    post(type, action, payload) {
+      const envelope = {
+        source: this.sourceTag,
+        type,
+        action,
+        correlationId: "",
+        payload,
+        timestamp: Date.now()
+      };
+      window.postMessage(envelope, "*");
+    }
+    /**
+     * Envia um comando e aguarda a resposta assíncrona (Request / Response).
+     */
+    request(type, action, payload, timeoutMs = 5e3) {
+      const correlationId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          this.pendingRequests.delete(correlationId);
+          reject(new Error(`Timeout na comunicação com ${this.targetTag} [${type}:${action || ""}]`));
+        }, timeoutMs);
+        this.pendingRequests.set(correlationId, { resolve, reject, timer });
+        const envelope = {
+          source: this.sourceTag,
+          type,
+          action,
+          correlationId,
+          payload,
+          timestamp: Date.now()
+        };
+        window.postMessage(envelope, "*");
+      });
+    }
+    /**
+     * Envia a resposta de uma requisição para o outro mundo.
+     */
+    sendResponse(correlationId, payload) {
+      const envelope = {
+        source: this.sourceTag,
+        type: BRIDGE_EVENTS.RESPONSE,
+        correlationId,
+        payload,
+        timestamp: Date.now()
+      };
+      window.postMessage(envelope, "*");
+    }
+  }
+  const MODULE$g = "LiveRemoteAgent (ISOLATED)";
+  class LiveRemoteAgent {
+    bridge = new PlatformBridge(false);
+    constructor() {
+      Logger.info(MODULE$g, "Agente do Isolated World inicializado");
+    }
+    /**
+     * Envia comando de fixar produto para o MAIN WORLD.
+     */
+    async pinProduct(productId) {
+      try {
+        return await this.bridge.request(
+          BRIDGE_EVENTS.COMMAND,
+          "PIN_PRODUCT",
+          { productId },
+          4e3
+        );
+      } catch (err) {
+        Logger.warn(MODULE$g, "Ponte falhou ao fixar produto, usando fallback:", err);
+        return { success: false, error: String(err) };
+      }
+    }
+    /**
+     * Envia comando de desafixar produto para o MAIN WORLD.
+     */
+    async unpinProduct() {
+      try {
+        return await this.bridge.request(
+          BRIDGE_EVENTS.COMMAND,
+          "UNPIN_PRODUCT",
+          {},
+          3e3
+        );
+      } catch (err) {
+        Logger.warn(MODULE$g, "Ponte falhou ao desafixar produto:", err);
+        return { success: false, error: String(err) };
+      }
+    }
+    /**
+     * Solicita atualização de produtos diretamente ao MAIN WORLD.
+     */
+    async refreshProducts() {
+      try {
+        return await this.bridge.request(
+          BRIDGE_EVENTS.COMMAND,
+          "REFRESH_PRODUCTS",
+          {},
+          4e3
+        );
+      } catch (err) {
+        Logger.warn(MODULE$g, "Ponte falhou ao recarregar produtos:", err);
+        return { success: false, error: String(err), data: [] };
+      }
+    }
+    /**
+     * Envia mensagem no chat através do MAIN WORLD.
+     */
+    async sendChatMessage(text) {
+      try {
+        return await this.bridge.request(
+          BRIDGE_EVENTS.COMMAND,
+          "SEND_CHAT",
+          { text },
+          3e3
+        );
+      } catch (err) {
+        Logger.warn(MODULE$g, "Ponte falhou ao enviar chat:", err);
+        return { success: false, error: String(err) };
+      }
+    }
+    /**
+     * Ping de heartbeat para o MAIN WORLD.
+     */
+    async pingHeartbeat() {
+      try {
+        return await this.bridge.request(
+          BRIDGE_EVENTS.HEARTBEAT,
+          "",
+          {},
+          2e3
+        );
+      } catch {
+        return null;
+      }
+    }
+  }
+  const liveRemoteAgent = new LiveRemoteAgent();
+  const MODULE$f = "TikTokShopAdapter";
   class TikTokShopAdapter {
     live = new TikTokLiveAdapter();
     products = new TikTokProductAdapter();
@@ -1608,17 +1814,34 @@
       return this.products.getPinnedProduct();
     }
     async pinProduct(productId) {
-      Logger.info(MODULE$e, `pinProduct chamado para ID: ${productId}`);
+      Logger.info(MODULE$f, `pinProduct chamado para ID: ${productId}`);
+      const remoteRes = await liveRemoteAgent.pinProduct(productId);
+      if (remoteRes.success) {
+        return remoteRes;
+      }
+      Logger.info(MODULE$f, "Tentando fixação via fallback no DOM local...");
       return this.products.pinProduct(productId);
     }
     async unpinProduct() {
-      Logger.info(MODULE$e, "unpinProduct chamado");
+      Logger.info(MODULE$f, "unpinProduct chamado");
+      const remoteRes = await liveRemoteAgent.unpinProduct();
+      if (remoteRes.success) {
+        return remoteRes;
+      }
       return this.products.unpinProduct();
     }
     async refreshProducts() {
+      const remoteRes = await liveRemoteAgent.refreshProducts();
+      if (remoteRes.success && remoteRes.data && remoteRes.data.length > 0) {
+        return remoteRes;
+      }
       return this.products.refreshProducts();
     }
     async sendChatMessage(text) {
+      const remoteRes = await liveRemoteAgent.sendChatMessage(text);
+      if (remoteRes.success) {
+        return remoteRes;
+      }
       try {
         const input = queryWithFallbacks(TikTokSelectors.chat.input);
         if (!input) {
@@ -1643,7 +1866,7 @@
         const sendBtn = queryWithFallbacks(TikTokSelectors.chat.sendButton);
         if (sendBtn) {
           sendBtn.click();
-          Logger.info(MODULE$e, `Mensagem enviada no chat: "${text.substring(0, 30)}..."`);
+          Logger.info(MODULE$f, `Mensagem enviada no chat: "${text.substring(0, 30)}..."`);
           return { success: true };
         }
         input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", keyCode: 13, bubbles: true }));
@@ -1660,7 +1883,7 @@
     }
   }
   const tiktokAdapter = new TikTokShopAdapter();
-  const MODULE$d = "LiveController";
+  const MODULE$e = "LiveController";
   class LiveController {
     /**
      * Inicia ou retoma o estado ativo da transmissão local.
@@ -1674,7 +1897,7 @@
         message: "🔴 Transmissão iniciada no Copilo Live Shop",
         type: "success"
       });
-      Logger.info(MODULE$d, "Live iniciada manualmente via controller");
+      Logger.info(MODULE$e, "Live iniciada manualmente via controller");
       return {
         success: true,
         data: { startedAt }
@@ -1684,7 +1907,7 @@
      * Encerra a LIVE no TikTok Shop e no estado local.
      */
     async endLive() {
-      Logger.info(MODULE$d, "Comando de encerramento da LIVE acionado");
+      Logger.info(MODULE$e, "Comando de encerramento da LIVE acionado");
       const result = await tiktokAdapter.endLive();
       StateManager.setLiveStatus("LIVE_ENDED");
       EventBus.emit("live:ended");
@@ -1707,13 +1930,13 @@
       return StateManager.live.status === "LIVE_ACTIVE" || tiktokAdapter.isLiveActive();
     }
   }
-  const MODULE$c = "SalesController";
+  const MODULE$d = "SalesController";
   class SalesController {
     /**
      * Registra manualmente uma nova venda ou dispara processamento de venda.
      */
     registerSale(sale) {
-      Logger.info(MODULE$c, `Registrando venda: ${sale.productName} (R$ ${sale.amount})`);
+      Logger.info(MODULE$d, `Registrando venda: ${sale.productName} (R$ ${sale.amount})`);
       StateManager.addSale(sale);
       StorageManager.saveSalesHistory([...StateManager.sales]).catch(() => {
       });
@@ -1818,7 +2041,7 @@
       this.salesCtrl.clearSales();
     }
   }
-  const MODULE$b = "ProductController";
+  const MODULE$c = "ProductController";
   class ProductController {
     /**
      * Recarrega a lista de produtos do TikTok Shop.
@@ -1828,14 +2051,14 @@
         const result = await tiktokAdapter.refreshProducts();
         if (result.success && result.data) {
           StateManager.setProducts(result.data);
-          Logger.info(MODULE$b, `${result.data.length} produtos sincronizados`);
+          Logger.info(MODULE$c, `${result.data.length} produtos sincronizados`);
           return result;
         }
         const currentProducts = tiktokAdapter.getProducts();
         StateManager.setProducts(currentProducts);
         return { success: true, data: currentProducts };
       } catch (err) {
-        Logger.error(MODULE$b, "Erro ao atualizar catálogo de produtos:", err);
+        Logger.error(MODULE$c, "Erro ao atualizar catálogo de produtos:", err);
         return { success: false, error: String(err) };
       }
     }
@@ -1846,7 +2069,7 @@
       if (!productId) {
         return { success: false, error: "Identificador do produto é obrigatório" };
       }
-      Logger.info(MODULE$b, `Fixando produto ID: ${productId}`);
+      Logger.info(MODULE$c, `Fixando produto ID: ${productId}`);
       const result = await tiktokAdapter.pinProduct(productId);
       if (result.success) {
         StateManager.setPinnedProduct(productId);
@@ -1869,7 +2092,7 @@
      * Desafixa o produto fixado na LIVE.
      */
     async unpinProduct() {
-      Logger.info(MODULE$b, "Desafixando produto atual");
+      Logger.info(MODULE$c, "Desafixando produto atual");
       const result = await tiktokAdapter.unpinProduct();
       if (result.success) {
         StateManager.setPinnedProduct(void 0);
@@ -2025,7 +2248,7 @@
       };
     }
   }
-  const MODULE$a = "AutomationController";
+  const MODULE$b = "AutomationController";
   class AutomationController {
     repinTimer = null;
     productCtrl = new ProductController();
@@ -2034,7 +2257,7 @@
     constructor() {
       EventBus.on("live:ended", () => {
         if (this.isRunning()) {
-          Logger.info(MODULE$a, "LIVE encerrada — desligando renovação automática de produto");
+          Logger.info(MODULE$b, "LIVE encerrada — desligando renovação automática de produto");
           this.stop();
           EventBus.emit("toast:show", {
             message: "LIVE encerrada — renovação de produto desligada",
@@ -2055,11 +2278,11 @@
         return false;
       }
       if (StateManager.live.status !== "LIVE_ACTIVE") {
-        Logger.warn(MODULE$a, "Tentativa de iniciar automação sem LIVE ativa");
+        Logger.warn(MODULE$b, "Tentativa de iniciar automação sem LIVE ativa");
       }
       this.stop();
       const intervalMs = Math.max(10, intervalSecs) * 1e3;
-      Logger.info(MODULE$a, `Iniciando automação: Produto ${productId}, Intervalo ${intervalSecs}s`);
+      Logger.info(MODULE$b, `Iniciando automação: Produto ${productId}, Intervalo ${intervalSecs}s`);
       StateManager.patchLive({
         automationEnabled: true,
         automationProductId: productId,
@@ -2100,7 +2323,7 @@
         }
       });
       EventBus.emit("automation:stopped");
-      Logger.info(MODULE$a, "Automação parada");
+      Logger.info(MODULE$b, "Automação parada");
     }
     /**
      * Verifica se a automação está rodando.
@@ -2112,7 +2335,7 @@
       if (this.isProcessing) return;
       const now = Date.now();
       if (now - this.lastActionTimestamp < DEFAULTS.AUTO_COOLDOWN_MS) {
-        Logger.debug(MODULE$a, "Cooldown ativo — ignorando ciclo de renovação");
+        Logger.debug(MODULE$b, "Cooldown ativo — ignorando ciclo de renovação");
         return;
       }
       if (StateManager.live.status === "LIVE_ENDED" || StateManager.live.status === "LIVE_INACTIVE") {
@@ -2122,11 +2345,11 @@
       this.isProcessing = true;
       this.lastActionTimestamp = now;
       try {
-        Logger.debug(MODULE$a, `Executando renovação de fixação para produto: ${productId}`);
+        Logger.debug(MODULE$b, `Executando renovação de fixação para produto: ${productId}`);
         EventBus.emit("automation:repin", { productId });
         await this.productCtrl.pinProduct(productId);
       } catch (err) {
-        Logger.error(MODULE$a, "Erro durante renovação automática de produto:", err);
+        Logger.error(MODULE$b, "Erro durante renovação automática de produto:", err);
       } finally {
         this.isProcessing = false;
       }
@@ -2193,7 +2416,7 @@
       return updated;
     }
   }
-  const MODULE$9 = "LicenseManager";
+  const MODULE$a = "LicenseManager";
   class LicenseManager {
     /**
      * Valida uma chave de ativação localmente ou via backend futuro.
@@ -2206,12 +2429,12 @@
       }
       if (cleanKey.startsWith("PRO-") && cleanKey.length >= 10) {
         this._updatePlan("PRO", true, cleanKey);
-        Logger.info(MODULE$9, "Plano PRO ativado com sucesso");
+        Logger.info(MODULE$a, "Plano PRO ativado com sucesso");
         return { status: "PRO", valid: true, message: "Licença PRO ativada com sucesso!" };
       }
       if (cleanKey.startsWith("PREMIUM-") && cleanKey.length >= 14) {
         this._updatePlan("PREMIUM", true, cleanKey);
-        Logger.info(MODULE$9, "Plano PREMIUM ativado com sucesso");
+        Logger.info(MODULE$a, "Plano PREMIUM ativado com sucesso");
         return { status: "PREMIUM", valid: true, message: "Licença PREMIUM ativada com sucesso!" };
       }
       this._updatePlan("FREE", false);
@@ -2285,7 +2508,7 @@
       return this.licenseMgr.getLicense();
     }
   }
-  const MODULE$8 = "AudioManager";
+  const MODULE$9 = "AudioManager";
   class AudioManager {
     ctx = null;
     volumeNode = null;
@@ -2308,10 +2531,10 @@
           await this.ctx.resume();
         }
         this.unlocked = true;
-        Logger.info(MODULE$8, "AudioContext desbloqueado com sucesso");
+        Logger.info(MODULE$9, "AudioContext desbloqueado com sucesso");
         return true;
       } catch (err) {
-        Logger.warn(MODULE$8, "Falha ao desbloquear AudioContext:", err);
+        Logger.warn(MODULE$9, "Falha ao desbloquear AudioContext:", err);
         return false;
       }
     }
@@ -2323,7 +2546,7 @@
         await this.unlock();
       }
       if (!this.ctx || this.ctx.state !== "running") {
-        Logger.debug(MODULE$8, "Áudio bloqueado ou não inicializado");
+        Logger.debug(MODULE$9, "Áudio bloqueado ou não inicializado");
         return;
       }
       try {
@@ -2341,7 +2564,7 @@
         osc.start(now);
         osc.stop(now + 0.45);
       } catch (err) {
-        Logger.warn(MODULE$8, "Erro ao tocar som sintetizado:", err);
+        Logger.warn(MODULE$9, "Erro ao tocar som sintetizado:", err);
       }
     }
     /**
@@ -2386,7 +2609,7 @@
     }
   }
   const panelCss = "\n@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');\n/* ============================================================\n   Auto Live Shop V2 — Estilos do Floating Panel\n   Injetado via Shadow DOM — isolado do TikTok\n   ============================================================ */\n\n/* ── Fonte ────────────────────────────────────────────────── */\n\n/* ── Tokens de design ────────────────────────────────────────*/\n:host {\n  display: block;\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 0;\n  height: 0;\n  z-index: 2147483647;\n  pointer-events: none;\n  --bg:          #080d1a;\n  --bg-card:     #0d1525;\n  --bg-card-alt: #111c30;\n  --bg-sub:      #0a1220;\n  --border:      #1e2d47;\n  --border-light:#2a3f5c;\n  --green:       #22c55e;\n  --green-dim:   #16a34a;\n  --green-glow:  rgba(34,197,94,0.18);\n  --teal:        #14b8a6;\n  --teal-dim:    #0d8a7c;\n  --teal-glow:   rgba(20,184,166,0.15);\n  --teal-light:  #5eead4;\n  --red:         #ef4444;\n  --red-dim:     #b91c1c;\n  --orange:      #f97316;\n  --yellow:      #eab308;\n  --text-1:      #f0f6ff;\n  --text-2:      #94a3b8;\n  --text-3:      #64748b;\n  --shadow:      0 8px 32px rgba(0,0,0,0.7);\n  --radius:      12px;\n  --radius-sm:   8px;\n  --radius-xs:   5px;\n  --transition:  0.18s ease;\n  --font:        'Inter', system-ui, -apple-system, sans-serif;\n}\n\n*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n\n/* ── Painel raiz ──────────────────────────────────────────── */\n.als-panel {\n  position: fixed;\n  top: var(--als-y, 80px);\n  left: var(--als-x, 16px);\n  width: var(--als-w, 320px);\n  height: var(--als-h, 560px);\n  z-index: 2147483647;\n  pointer-events: auto;\n  display: flex;\n  flex-direction: column;\n  background: var(--bg);\n  border: 1px solid var(--border-light);\n  border-radius: var(--radius);\n  box-shadow: var(--shadow);\n  font-family: var(--font);\n  font-size: 13px;\n  color: var(--text-1);\n  overflow: hidden;\n  user-select: none;\n  -webkit-font-smoothing: antialiased;\n  transition: box-shadow var(--transition);\n}\n.als-panel:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.8), 0 0 0 1px var(--border-light); }\n.als-panel.minimized { height: 48px !important; overflow: hidden; }\n.als-panel.hidden { display: none !important; }\n\n/* ── Scrollbar ────────────────────────────────────────────── */\n::-webkit-scrollbar { width: 3px; }\n::-webkit-scrollbar-track { background: transparent; }\n::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }\n\n/* ── Header / Drag handle ─────────────────────────────────── */\n.als-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 0 10px;\n  height: 48px;\n  min-height: 48px;\n  background: linear-gradient(135deg, #0d1525, #111c30);\n  border-bottom: 1px solid var(--border);\n  cursor: grab;\n  flex-shrink: 0;\n}\n.als-header:active { cursor: grabbing; }\n\n.als-header-left { display: flex; align-items: center; gap: 8px; }\n\n.als-logo {\n  width: 26px;\n  height: 26px;\n  background: linear-gradient(135deg, var(--teal), var(--teal-dim));\n  border-radius: 7px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 14px;\n  flex-shrink: 0;\n  box-shadow: 0 0 10px var(--teal-glow);\n}\n\n.als-brand { display: flex; flex-direction: column; line-height: 1.2; }\n.als-brand-name { font-size: 12px; font-weight: 800; color: var(--text-1); letter-spacing: -0.2px; }\n.als-brand-sub  { font-size: 9px; color: var(--teal); font-weight: 600; }\n\n.als-header-right { display: flex; align-items: center; gap: 4px; }\n\n/* Status badge no header */\n.als-live-badge {\n  display: inline-flex;\n  align-items: center;\n  gap: 5px;\n  padding: 3px 8px;\n  border-radius: 12px;\n  font-size: 9px;\n  font-weight: 800;\n  letter-spacing: 0.5px;\n  margin-right: 4px;\n}\n.als-live-badge.detecting { background: rgba(100,116,139,0.2); border: 1px solid rgba(100,116,139,0.4); color: var(--text-3); }\n.als-live-badge.active    { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #fc8181; }\n.als-live-badge.inactive  { background: rgba(100,116,139,0.15); border: 1px solid rgba(100,116,139,0.3); color: var(--text-3); }\n.als-live-badge.ended     { background: rgba(100,116,139,0.15); border: 1px solid rgba(100,116,139,0.3); color: var(--text-3); }\n.als-live-badge.error     { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #fc8181; }\n\n.als-live-dot {\n  width: 7px; height: 7px;\n  border-radius: 50%;\n  background: var(--red);\n  animation: als-pulse 1.4s infinite;\n  flex-shrink: 0;\n}\n@keyframes als-pulse {\n  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }\n  50%      { box-shadow: 0 0 0 5px rgba(239,68,68,0); }\n}\n.als-live-badge:not(.active) .als-live-dot { animation: none; background: var(--text-3); }\n\n.als-icon-btn {\n  background: none; border: none;\n  color: var(--text-3); cursor: pointer;\n  width: 26px; height: 26px;\n  border-radius: var(--radius-xs);\n  display: flex; align-items: center; justify-content: center;\n  font-size: 14px;\n  transition: color var(--transition), background var(--transition);\n}\n.als-icon-btn:hover { color: var(--text-1); background: rgba(255,255,255,0.06); }\n\n/* ── Tab Nav ──────────────────────────────────────────────── */\n.als-tab-nav {\n  display: grid;\n  grid-template-columns: repeat(4, 1fr);\n  background: var(--bg-card);\n  border-bottom: 1px solid var(--border);\n  flex-shrink: 0;\n}\n.als-tab-btn {\n  display: flex; flex-direction: column; align-items: center; justify-content: center;\n  gap: 2px; padding: 7px 4px;\n  background: none; border: none;\n  border-bottom: 2px solid transparent;\n  color: var(--text-3); cursor: pointer;\n  font-family: var(--font);\n  transition: color var(--transition), border-color var(--transition), background var(--transition);\n}\n.als-tab-btn:hover { color: var(--text-2); background: rgba(255,255,255,0.02); }\n.als-tab-btn.active { color: var(--green); border-bottom-color: var(--green); background: rgba(34,197,94,0.04); }\n.als-tab-icon  { font-size: 13px; }\n.als-tab-label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.3px; }\n\n/* ── Conteúdo ─────────────────────────────────────────────── */\n.als-content {\n  flex: 1;\n  overflow-y: auto;\n  overflow-x: hidden;\n  padding: 10px;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n}\n\n/* ── Abas ─────────────────────────────────────────────────── */\n.als-pane { display: none; flex-direction: column; gap: 8px; animation: als-fadeIn 0.18s ease; }\n.als-pane.active { display: flex; }\n@keyframes als-fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }\n\n/* ── Cards ─────────────────────────────────────────────────── */\n.als-card {\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  padding: 12px;\n  transition: border-color var(--transition);\n}\n.als-card:hover { border-color: var(--border-light); }\n.als-card-sub {\n  background: var(--bg-sub);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-xs);\n  padding: 9px;\n  margin-top: 8px;\n}\n\n.als-card-header {\n  display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;\n}\n.als-card-title { font-size: 12px; font-weight: 700; color: var(--text-1); line-height: 1.3; }\n.als-card-desc  { font-size: 10px; color: var(--text-2); margin-top: 2px; line-height: 1.4; }\n\n/* ── Status cards ─────────────────────────────────────────── */\n.als-status-card {\n  background: linear-gradient(135deg, #0d1525, #0f1e35);\n  border-color: var(--border-light);\n  box-shadow: 0 0 20px rgba(20,184,166,0.12);\n}\n.als-empty-state {\n  text-align: center; color: var(--text-3);\n  padding: 20px 0; font-size: 11px; line-height: 1.6;\n}\n.als-empty-icon { font-size: 28px; margin-bottom: 8px; }\n\n/* ── Section label ────────────────────────────────────────── */\n.als-section-label {\n  font-size: 8.5px; font-weight: 800; color: var(--text-3);\n  letter-spacing: 1.2px; text-transform: uppercase;\n  padding: 2px 0;\n}\n\n/* ── Metrics grid ─────────────────────────────────────────── */\n.als-metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }\n.als-metric {\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  padding: 10px 8px; text-align: center;\n  transition: border-color var(--transition), box-shadow var(--transition);\n}\n.als-metric:hover { border-color: var(--green-dim); box-shadow: 0 0 10px var(--green-glow); }\n.als-metric-label { font-size: 8.5px; font-weight: 700; color: var(--text-3); letter-spacing: 0.8px; text-transform: uppercase; }\n.als-metric-value { font-size: 20px; font-weight: 900; color: var(--teal-light); line-height: 1.2; margin: 2px 0; font-variant-numeric: tabular-nums; }\n.als-metric-sub   { font-size: 9px; color: var(--text-3); }\n\n/* ── GMV hero ─────────────────────────────────────────────── */\n.als-gmv-hero { text-align: center; padding: 4px 0; }\n.als-gmv-label { font-size: 9px; font-weight: 700; color: var(--text-3); letter-spacing: 1px; text-transform: uppercase; }\n.als-gmv-value { font-size: 28px; font-weight: 900; color: var(--green); font-variant-numeric: tabular-nums; letter-spacing: -1px; line-height: 1.1; margin: 4px 0; text-shadow: 0 0 20px rgba(34,197,94,0.4); }\n.als-gmv-sub   { font-size: 10px; color: var(--text-2); }\n\n/* ── Progress bar (meta) ──────────────────────────────────── */\n.als-progress-wrap { margin-top: 8px; }\n.als-progress-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-2); margin-bottom: 4px; }\n.als-progress-track { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }\n.als-progress-fill  { height: 100%; background: linear-gradient(90deg, var(--green-dim), var(--green)); border-radius: 4px; transition: width 0.5s ease; }\n\n/* ── Sales feed ───────────────────────────────────────────── */\n.als-sales-feed { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }\n.als-sale-item {\n  display: flex; justify-content: space-between; align-items: center;\n  background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.15);\n  border-radius: 6px; padding: 6px 10px;\n  animation: als-slideIn 0.25s ease;\n}\n@keyframes als-slideIn { from { opacity:0; transform: translateX(-6px); } to { opacity:1; transform:none; } }\n.als-sale-name { font-size: 11px; font-weight: 600; color: var(--text-1); }\n.als-sale-meta { font-size: 10px; color: var(--text-3); }\n.als-sale-amount { font-size: 11px; font-weight: 700; color: var(--green); }\n\n/* ── Buttons ──────────────────────────────────────────────── */\n.als-btn {\n  display: inline-flex; align-items: center; gap: 4px;\n  border: none; border-radius: var(--radius-sm);\n  font-family: var(--font); font-weight: 600; cursor: pointer;\n  transition: all var(--transition); white-space: nowrap;\n}\n.als-btn-sm { padding: 6px 12px; font-size: 11px; }\n.als-btn-xs { padding: 4px 8px; font-size: 10px; }\n.als-btn-full { width: 100%; justify-content: center; }\n\n.als-btn-green {\n  background: linear-gradient(135deg, var(--green), var(--green-dim));\n  color: #fff; box-shadow: 0 2px 8px rgba(34,197,94,0.3);\n}\n.als-btn-green:hover { box-shadow: 0 4px 14px rgba(34,197,94,0.5); transform: translateY(-1px); }\n\n.als-btn-teal {\n  background: linear-gradient(135deg, var(--teal), var(--teal-dim));\n  color: #fff; box-shadow: 0 2px 8px rgba(20,184,166,0.3);\n}\n.als-btn-teal:hover { box-shadow: 0 4px 14px rgba(20,184,166,0.5); transform: translateY(-1px); }\n\n.als-btn-ghost {\n  background: var(--bg-card-alt); color: var(--text-2);\n  border: 1px solid var(--border);\n}\n.als-btn-ghost:hover { background: var(--border); color: var(--text-1); }\n\n.als-btn-danger {\n  background: linear-gradient(135deg, var(--red), var(--red-dim));\n  color: #fff; box-shadow: 0 2px 8px rgba(239,68,68,0.3);\n}\n.als-btn-danger:hover { box-shadow: 0 4px 14px rgba(239,68,68,0.5); transform: translateY(-1px); }\n\n/* ── Toggle switch ────────────────────────────────────────── */\n.als-toggle { position: relative; display: inline-flex; align-items: center; cursor: pointer; flex-shrink: 0; }\n.als-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }\n.als-toggle-slider {\n  width: 38px; height: 21px;\n  background: var(--border); border-radius: 11px;\n  position: relative; transition: background var(--transition); flex-shrink: 0;\n}\n.als-toggle-slider::after {\n  content: ''; position: absolute; top: 2.5px; left: 2.5px;\n  width: 16px; height: 16px; background: var(--text-3);\n  border-radius: 50%; transition: transform var(--transition), background var(--transition);\n}\n.als-toggle input:checked + .als-toggle-slider { background: var(--green); }\n.als-toggle input:checked + .als-toggle-slider::after { transform: translateX(17px); background: #fff; }\n\n.als-toggle-sm .als-toggle-slider { width: 30px; height: 17px; }\n.als-toggle-sm .als-toggle-slider::after { width: 13px; height: 13px; }\n.als-toggle-sm input:checked + .als-toggle-slider::after { transform: translateX(13px); }\n\n/* ── Toggle row ───────────────────────────────────────────── */\n.als-toggle-row {\n  display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 5px 0;\n}\n.als-toggle-row-label { font-size: 12px; font-weight: 600; color: var(--text-1); }\n.als-toggle-row-desc  { font-size: 10px; color: var(--text-2); margin-top: 1px; }\n\n/* ── Forms ────────────────────────────────────────────────── */\n.als-form-group { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }\n.als-form-label { font-size: 10px; font-weight: 600; color: var(--text-2); }\n.als-form-hint  { font-size: 9.5px; color: var(--text-3); }\n\n.als-input, .als-select, .als-textarea {\n  background: var(--bg-sub); border: 1px solid var(--border);\n  border-radius: var(--radius-xs); color: var(--text-1);\n  font-family: var(--font); font-size: 12px; padding: 6px 9px;\n  width: 100%; outline: none;\n  transition: border-color var(--transition), box-shadow var(--transition);\n}\n.als-input:focus, .als-select:focus, .als-textarea:focus {\n  border-color: var(--green); box-shadow: 0 0 0 2px var(--green-glow);\n}\n.als-select { appearance: none; cursor: pointer; padding-right: 24px; }\n.als-textarea { resize: vertical; min-height: 52px; }\n\n.als-select-wrap { position: relative; }\n.als-select-wrap::after { content:'▾'; position:absolute; right:8px; top:50%; transform:translateY(-50%); color:var(--text-3); pointer-events:none; font-size:11px; }\n\n.als-num-input {\n  background: var(--bg-sub); border: 1px solid var(--border);\n  border-radius: var(--radius-xs); color: var(--teal-light);\n  font-family: var(--font); font-size: 15px; font-weight: 700;\n  padding: 5px; text-align: center; width: 56px; outline: none;\n}\n.als-num-input:focus { border-color: var(--green); }\n\n.als-input-row { display: flex; align-items: center; gap: 6px; }\n.als-input-label { font-size: 10px; color: var(--text-2); white-space: nowrap; }\n\n/* ── Product list ─────────────────────────────────────────── */\n.als-product-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }\n.als-product-item {\n  display: flex; align-items: center; gap: 8px;\n  background: var(--bg-sub); border: 1px solid var(--border);\n  border-radius: var(--radius-xs); padding: 7px 9px;\n  transition: border-color var(--transition);\n}\n.als-product-item:hover { border-color: var(--border-light); }\n.als-product-item.pinned { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.04); }\n.als-product-pin-badge { font-size: 10px; color: var(--green); font-weight: 700; }\n.als-product-info { flex: 1; min-width: 0; }\n.als-product-name { font-size: 11px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n.als-product-price { font-size: 10px; color: var(--text-3); }\n.als-product-actions { display: flex; gap: 4px; flex-shrink: 0; }\n\n/* ── Message / reply list ─────────────────────────────────── */\n.als-msg-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }\n.als-msg-item {\n  display: flex; align-items: center; gap: 6px;\n  background: var(--bg-sub); border: 1px solid var(--border);\n  border-radius: var(--radius-xs); padding: 7px 9px;\n}\n.als-msg-item.active-item { border-color: rgba(34,197,94,0.25); }\n.als-msg-text { flex: 1; font-size: 11px; color: var(--text-1); line-height: 1.4; }\n.als-msg-actions { display: flex; gap: 4px; flex-shrink: 0; }\n\n.als-icon-btn-xs {\n  background: none; border: none; color: var(--text-3); cursor: pointer;\n  font-size: 12px; padding: 2px 4px; border-radius: 4px;\n  transition: color var(--transition), background var(--transition);\n}\n.als-icon-btn-xs:hover { color: var(--text-1); background: var(--border); }\n.als-icon-btn-xs.danger:hover { color: var(--red); }\n\n/* ── Trigger tags ─────────────────────────────────────────── */\n.als-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }\n.als-tag {\n  background: rgba(20,184,166,0.12); border: 1px solid rgba(20,184,166,0.25);\n  color: var(--teal-light); border-radius: 10px;\n  padding: 2px 7px; font-size: 9.5px; font-weight: 600;\n}\n\n/* ── Checkbox ─────────────────────────────────────────────── */\n.als-checkbox-list { display: flex; flex-direction: column; gap: 7px; }\n.als-checkbox-item { display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: 12px; color: var(--text-1); }\n.als-checkbox-item input { display: none; }\n.als-checkbox-custom {\n  width: 17px; height: 17px; border: 2px solid var(--border-light);\n  border-radius: 4px; background: var(--bg-sub); flex-shrink: 0;\n  position: relative; transition: all var(--transition);\n}\n.als-checkbox-custom::after {\n  content:''; position:absolute; top:2px; left:5px;\n  width:4px; height:8px; border: 2px solid #fff; border-top:none; border-left:none;\n  transform:rotate(45deg); opacity:0; transition: opacity var(--transition);\n}\n.als-checkbox-item input:checked + .als-checkbox-custom { background: var(--green); border-color: var(--green); }\n.als-checkbox-item input:checked + .als-checkbox-custom::after { opacity:1; }\n\n/* ── License card ─────────────────────────────────────────── */\n.als-license-card { background: linear-gradient(135deg, #0d1525, #101f38); border-color: rgba(34,197,94,0.25); }\n.als-badge { border-radius: 10px; padding: 2px 8px; font-size: 9.5px; font-weight: 700; }\n.als-badge-free    { background: rgba(100,116,139,0.2); border: 1px solid rgba(100,116,139,0.4); color: var(--text-3); }\n.als-badge-pro     { background: rgba(20,184,166,0.15); border: 1px solid rgba(20,184,166,0.4); color: var(--teal-light); }\n.als-badge-premium { background: rgba(234,179,8,0.15); border: 1px solid rgba(234,179,8,0.4); color: var(--yellow); }\n.als-badge-active  { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4); color: var(--green); }\n\n.als-input-eye-wrap { position: relative; }\n.als-input-eye-wrap .als-input { padding-right: 32px; }\n.als-eye-btn {\n  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);\n  background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 14px;\n}\n\n.als-link { font-size: 10px; color: var(--teal); text-decoration: none; border-bottom: 1px dashed var(--teal-dim); }\n.als-link:hover { color: var(--teal-light); }\n\n/* ── Collapsible ──────────────────────────────────────────── */\n.als-collapsible { display: none; }\n.als-collapsible.open { display: block; }\n\n/* ── Sliders ──────────────────────────────────────────────── */\n.als-range {\n  width: 100%; appearance: none; height: 3px;\n  background: var(--border); border-radius: 2px; outline: none; cursor: pointer;\n}\n.als-range::-webkit-slider-thumb {\n  appearance: none; width: 14px; height: 14px; border-radius: 50%;\n  background: var(--green); cursor: pointer; box-shadow: 0 0 5px rgba(34,197,94,0.5);\n}\n\n/* ── Toasts ───────────────────────────────────────────────── */\n.als-toasts {\n  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);\n  display: flex; flex-direction: column; gap: 5px;\n  width: calc(100% - 20px); z-index: 10; pointer-events: none;\n}\n.als-toast {\n  background: var(--bg-card-alt); border: 1px solid var(--border-light);\n  color: var(--text-1); padding: 7px 14px;\n  border-radius: 20px; font-size: 11px; font-weight: 600;\n  box-shadow: 0 4px 16px rgba(0,0,0,0.5);\n  animation: als-toastIn 0.25s ease;\n  text-align: center; pointer-events: none;\n}\n.als-toast.success { border-color: rgba(34,197,94,0.4); }\n.als-toast.warn    { border-color: rgba(239,68,68,0.4); }\n.als-toast.error   { border-color: rgba(239,68,68,0.6); background: rgba(239,68,68,0.1); }\n.als-toast.info    { border-color: rgba(20,184,166,0.4); }\n@keyframes als-toastIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }\n@keyframes als-toastOut { to { opacity:0; transform: translateY(6px); } }\n\n/* ── Footer ───────────────────────────────────────────────── */\n.als-footer { text-align: center; color: var(--text-3); font-size: 9px; padding: 8px 0 2px; }\n\n/* ── Utilities ────────────────────────────────────────────── */\n.mt4  { margin-top: 4px; }\n.mt6  { margin-top: 6px; }\n.mt8  { margin-top: 8px; }\n.mb4  { margin-bottom: 4px; }\n.flex-row { display: flex; gap: 6px; align-items: center; }\n.flex-between { display: flex; justify-content: space-between; align-items: center; gap: 6px; }\n.text-green { color: var(--green); }\n.text-red   { color: var(--red); }\n.text-teal  { color: var(--teal); }\n.text-muted { color: var(--text-3); font-size: 10px; }\n.bold       { font-weight: 700; }\n.w-full     { width: 100%; }\n";
-  const MODULE$7 = "FloatingPanel";
+  const MODULE$8 = "FloatingPanel";
   class FloatingPanel {
     host;
     shadow;
@@ -2409,10 +2632,10 @@
     timerInterval = null;
     editingReplyId = null;
     async mount() {
-      Logger.info(MODULE$7, `Montando ${APP_NAME}...`);
+      Logger.info(MODULE$8, `Montando ${APP_NAME}...`);
       const targetParent = document.body || document.documentElement;
       if (!targetParent) {
-        Logger.error(MODULE$7, "document.body não disponível para montagem do painel");
+        Logger.error(MODULE$8, "document.body não disponível para montagem do painel");
         return;
       }
       this.host = document.createElement("div");
@@ -2444,7 +2667,7 @@
       this._subscribeEvents();
       await this._hydrate();
       this._startTimer();
-      Logger.info(MODULE$7, `✅ ${APP_NAME} montado com sucesso`);
+      Logger.info(MODULE$8, `✅ ${APP_NAME} montado com sucesso`);
     }
     unmount() {
       this._stopTimer();
@@ -3156,7 +3379,7 @@
       this._renderGoal();
     }
   }
-  const MODULE$6 = "PanelInjector";
+  const MODULE$7 = "PanelInjector";
   class PanelInjector {
     activePanel = null;
     /**
@@ -3164,16 +3387,16 @@
      */
     async inject() {
       if (this.isAlreadyInjected()) {
-        Logger.warn(MODULE$6, "Painel já existente no DOM — injeção cancelada");
+        Logger.warn(MODULE$7, "Painel já existente no DOM — injeção cancelada");
         return this.activePanel;
       }
       try {
         this.activePanel = new FloatingPanel();
         await this.activePanel.mount();
-        Logger.info(MODULE$6, "Painel injetado com sucesso no DOM");
+        Logger.info(MODULE$7, "Painel injetado com sucesso no DOM");
         return this.activePanel;
       } catch (err) {
-        Logger.error(MODULE$6, "Erro fatal durante a injeção do painel:", err);
+        Logger.error(MODULE$7, "Erro fatal durante a injeção do painel:", err);
         return null;
       }
     }
@@ -3193,6 +3416,33 @@
      */
     isAlreadyInjected() {
       return !!document.getElementById(PANEL_ROOT_ID);
+    }
+  }
+  const MODULE$6 = "MainWorldInjector";
+  class MainWorldInjector {
+    static isInjected = false;
+    /**
+     * Injeta o script do controlador no contexto MAIN WORLD da página.
+     */
+    static inject() {
+      if (this.isInjected) return;
+      this.isInjected = true;
+      try {
+        const script = document.createElement("script");
+        script.src = chrome.runtime.getURL("main-world/controller.js");
+        script.id = "copilo-live-main-world";
+        script.async = false;
+        (document.head || document.documentElement).appendChild(script);
+        script.onload = () => {
+          Logger.info(MODULE$6, "✅ Controlador do MAIN WORLD carregado com sucesso.");
+          script.remove();
+        };
+        script.onerror = (err) => {
+          Logger.warn(MODULE$6, "Falha ao carregar script do MAIN WORLD:", err);
+        };
+      } catch (err) {
+        Logger.warn(MODULE$6, "Erro ao criar elemento de injeção:", err);
+      }
     }
   }
   const MODULE$5 = "LiveDetector";
@@ -3515,10 +3765,14 @@
     }
     const isTarget = pageDetector.isTargetPage();
     Logger.info(MODULE, `Página alvo detectada? ${isTarget ? "SIM (iniciando montagem)" : "NÃO (aguardando navegação SPA)"}`);
+    if (isTarget) {
+      MainWorldInjector.inject();
+    }
     if (!isTarget) {
       const unwatch = pageDetector.watchNavigation(async () => {
         if (pageDetector.isTargetPage() && !panelInjector.isAlreadyInjected()) {
           unwatch();
+          MainWorldInjector.inject();
           await initializeSession(panelInjector);
         }
       });
@@ -3528,6 +3782,7 @@
     pageDetector.watchNavigation(async () => {
       if (pageDetector.isTargetPage() && !panelInjector.isAlreadyInjected()) {
         Logger.info(MODULE, "Nova rota do TikTok Shop detectada via SPA — montando painel...");
+        MainWorldInjector.inject();
         await initializeSession(panelInjector);
       }
     });
